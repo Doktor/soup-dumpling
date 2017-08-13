@@ -15,9 +15,13 @@ class User:
 
     @classmethod
     def from_telegram(cls, user):
-        copy = user.copy()
-        copy['id_'] = copy.pop('id')
-        return cls(**copy)
+        return cls(
+            user.id,
+            user.first_name,
+            last_name=getattr(user, 'last_name', ''),
+            username=getattr(user, 'username', ''),
+            language_code=''
+        )
 
 
 class Chat:
@@ -33,10 +37,12 @@ class Chat:
 
     @classmethod
     def from_telegram(cls, chat):
-        copy = chat.copy()
-        copy['id_'] = copy.pop('id')
-        copy['type_'] = copy.pop('type')
-        return cls(**copy)
+        return cls(
+            chat.id,
+            chat.type,
+            title=getattr(chat, 'title', ''),
+            username=getattr(chat, 'username', '')
+        )
 
 
 class Quote:

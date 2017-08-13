@@ -1,12 +1,19 @@
 import json
-import telepot
+import logging
 import time
 from datetime import datetime
 from subprocess import check_output
+from telegram.ext import (CommandHandler, ConversationHandler, Filters,
+    MessageHandler, Updater)
 
 from classes import Chat, User
 from database import QuoteDatabase
 
+logging.basicConfig(
+    datefmt="%Y-%m-%d %H:%M:%S",
+    format="%(asctime)s | %(levelname)s @ %(name)s: %(message)s",
+    level=logging.DEBUG
+)
 
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
@@ -27,285 +34,388 @@ DATE_ARGS[4] = '--date=relative'
 VERSION = (1, 1, 0)
 
 # User state codes
-NO_CHAT_SPECIFIED = 0
-SELECTING_CHAT = 1
+SELECT_CHAT = 1
 SELECTED_CHAT = 2
 
+database = QuoteDatabase()
 
-class QuoteBot(telepot.Bot):
-    commands = ['about',
-        'random', 'quotes', 'stats', 'author', 'search', 'addquote']
+with open('tokens/soup.txt', 'r') as f:
+    token = f.read().strip()
 
-    def __init__(self, token):
-        super(QuoteBot, self).__init__(token)
+with open('tokens/username.txt', 'r') as f:
+    username = f.read().strip()
 
-        self.database = QuoteDatabase()
-        self.user = self.getMe()
 
-        with open('tokens/username.txt', 'r') as f:
-            self.username = f.read().strip()
+class QuoteBot:
+    def __init__(self, token, username, handlers):
+        self.updater = Updater(token)
+        self.dispatcher = self.updater.dispatcher
 
-    def _format_quote(self, quote, user):
-        date = datetime.fromtimestamp(quote.sent_at).strftime(TIME_FORMAT)
-        message = '"{text}" - {name}\n<i>{date}</i>'.format(
-            text=quote.content, name=user.first_name, date=date)
-        return message
+        for i, handler in enumerate(handlers):
+            self.dispatcher.add_handler(handler, group=i)
 
-    def _send_quote(self, chat_id, message, quote_id):
-        sent = self.sendMessage(chat_id, message, parse_mode='HTML')
+    def run(self):
+        self.updater.start_polling()
+        self.updater.idle()
 
-    def handle(self, m):
-        content_type, chat_type, chat_id = telepot.glance(m)
-        origin = chat_id
 
-        if content_type != 'text':
-            return
+# Helper functions
 
-        if chat_type == 'channel':
-            return
 
-        message_id = m['message_id']
-        user_id = m['from']['id']
-        text = m['text'].lower()
+def format_quote(quote, user):
+    date = datetime.fromtimestamp(quote.sent_at).strftime(TIME_FORMAT)
+    message = '"{text}" - {name}\n<i>{date}</i>'.format(
+        text=quote.content, name=user.first_name, date=date)
+    return message
 
-        if chat_type != 'private' and not text.startswith('/'):
-            return
 
-        raw_command = text.split(' ')[0]
-        args = text.replace(raw_command, '').lstrip()
-        command = raw_command.replace(self.username.lower(), '').lstrip('/')
+# Groups and direct messages
 
-        # Ignore unsupported commands
-        if chat_type != 'private' and command not in self.commands:
-            return
 
-        self.database.add_or_update_user(User.from_telegram(m['from']))
+def handle_about(bot, update):
+    info = {
+        'version': '.'.join((str(n) for n in VERSION)),
+        'updated': COMMIT_DATE,
+        'updated_rel': check_output(DATE_ARGS, encoding='utf8'),
+        'repo_url': REPOSITORY_URL,
+        'repo_name': REPOSITORY_NAME,
+        'hash_url': COMMIT_URL,
+        'hash': COMMIT_HASH[:7],
+    }
 
-        if user_id != chat_id:
-            self.database.add_or_update_chat(Chat.from_telegram(m['chat']))
-            self.database.add_membership(user_id, chat_id)
+    response = [
+        '"Nice quote!" - <b>Soup Dumpling {version}</b>',
+        '<i>{updated} ({updated_rel})</i>',
+        '',
+        'Source code at <a href="{repo_url}">{repo_name}</a>',
+        'Running on commit <a href="{hash_url}">{hash}</a>',
+    ]
 
-        if command == 'about':
-            info = {
-                'version': '.'.join((str(n) for n in VERSION)),
-                'updated': COMMIT_DATE,
-                'updated_rel': check_output(DATE_ARGS, encoding='utf8'),
-                'repo_url': REPOSITORY_URL,
-                'repo_name': REPOSITORY_NAME,
-                'hash_url': COMMIT_URL,
-                'hash': COMMIT_HASH[:7],
-            }
+    response = '\n'.join(response).format(**info)
 
-            response = ['"Nice quote!" - <b>Soup Dumpling {version}</b>',
-                '<i>{updated} ({updated_rel})</i>',
-                '',
-                'Source code at <a href="{repo_url}">{repo_name}</a>',
-                'Running on commit <a href="{hash_url}">{hash}</a>',
-            ]
+    update.message.reply_text(response,
+        quote=False, disable_web_page_preview=True, parse_mode='HTML')
 
-            response = '\n'.join(response).format(**info)
-            return self.sendMessage(chat_id, response,
-                disable_web_page_preview=True, parse_mode='HTML')
+handler_about = CommandHandler('about', handle_about)
 
-        elif chat_type != 'private' and command == 'addquote':
-            quote = m.get('reply_to_message', '')
-            if not quote:
-                return
 
-            # Only text messages can be added as quotes
-            content_type, _, _ = telepot.glance(quote)
-            if content_type != 'text':
-                return
+def handle_database(bot, update):
+    user = update.message.from_user
+    chat = update.message.chat
 
-            quoted_by = m['from']
+    database.add_or_update_user(User.from_telegram(user))
 
-            # Forwarded messages
-            if 'forward_from' in quote:
-                sent_by = quote['forward_from']
-                sent_at = quote['forward_date']
-            else:
-                sent_by = quote['from']
-                sent_at = quote['date']
+    if user.id != chat.id:
+        database.add_or_update_chat(Chat.from_telegram(chat))
+        database.add_membership(user.id, chat.id)
 
-            # Bot messages can't be added as quotes
-            if sent_by['id'] == self.user['id']:
-                response = "can't quote bot messages"
-                return self.sendMessage(
-                    origin, response, reply_to_message_id=message_id)
+handler_database = MessageHandler(Filters.text, handle_database)
 
-            # Users can't add their own messages as quotes
-            if sent_by['id'] == quoted_by['id']:
-                response = "can't quote own messages"
-                return self.sendMessage(
-                    origin, response, reply_to_message_id=message_id)
 
-            self.database.add_or_update_user(User.from_telegram(sent_by))
-            self.database.add_or_update_user(User.from_telegram(quoted_by))
+# Groups only
 
-            result = self.database.add_quote(
-                chat_id, quote['message_id'], sent_at, sent_by['id'],
-                quote['text'], quote.get('entities', list()), quoted_by['id'])
 
-            if result == QuoteDatabase.QUOTE_ADDED:
-                response = "quote added"
-            elif result == QuoteDatabase.QUOTE_ALREADY_EXISTS:
-                response = "quote already exists"
+def handle_addquote(bot, update):
+    m = update.message
+    chat_id = update.message.chat.id
+    quote = update.message.reply_to_message
 
-            return self.sendMessage(
-                chat_id, response, reply_to_message_id=message_id)
+    assert quote is not None
 
-        # Browse quotes via direct message
+    # Only text messages can be added as quotes
+    if quote.text is None:
+        return
 
-        if chat_type == 'private':
-            code, data = self.database.get_or_create_state(user_id)
-            data = '' if data is None or not data else json.loads(data)
+    quoted_by = m.from_user
 
-            if command in ['start', 'chats'] or code == NO_CHAT_SPECIFIED:
-                chats = self.database.get_chats(user_id)
+    # Forwarded messages
+    if quote.forward_from is not None:
+        sent_by = quote.forward_from
+        sent_at = quote.forward_date.timestamp()
+    else:
+        sent_by = quote.from_user
+        sent_at = quote.date.timestamp()
 
-                if not chats:
-                    response = "<b>Chat selection</b>\nno chats found"
-                    return self.sendMessage(
-                        origin, response, parse_mode='HTML')
+    # Bot messages can't be added as quotes
+    if sent_by.username == username.lstrip('@'):
+        response = "can't quote bot messages"
+        return update.message.reply_text(response)
 
-                response = [
-                    "<b>Chat selection</b>",
-                    "Choose a chat by its number or title:",
-                    "",
-                ]
+    # Users can't add their own messages as quotes
+    if sent_by.id == quoted_by.id:
+        response = "can't quote own messages"
+        return update.message.reply_text(response)
 
-                mapping = []
-                for i, (chat_id, chat_title) in enumerate(chats):
-                    response.append("<b>[{0}]</b> {1}".format(i, chat_title))
-                    mapping.append([i, chat_id, chat_title])
+    database.add_or_update_user(User.from_telegram(sent_by))
+    database.add_or_update_user(User.from_telegram(quoted_by))
 
-                self.database.set_state(
-                    user_id, SELECTING_CHAT, data=json.dumps(mapping))
+    # TODO: Update database to use quote.parse_entities()
+    result = database.add_quote(
+        chat_id, quote.message_id, sent_at, sent_by.id,
+        quote.text, list(), quoted_by.id)
 
-                response = '\n'.join(response)
-                return self.sendMessage(origin, response, parse_mode='HTML')
+    if result == QuoteDatabase.QUOTE_ADDED:
+        response = "quote added"
+    elif result == QuoteDatabase.QUOTE_ALREADY_EXISTS:
+        response = "quote already exists"
 
-            elif code == SELECTING_CHAT:
-                choice = text
+    update.message.reply_text(response)
 
-                try:
-                    i = int(choice)
-                    _, selected_id, title = data[i]
-                except IndexError:
-                    return self.sendMessage(chat_id, "invalid chat number")
-                except ValueError:
-                    try:
-                        _, selected_id, title = next(filter(data,
-                            lambda chat: choice.lower() in chat[2].lower()))
-                    except StopIteration:
-                        return self.sendMessage(
-                            chat_id, "no chat titles matched")
+handler_addquote = CommandHandler(
+    'addquote', handle_addquote, filters=Filters.reply & Filters.group)
 
-                self.database.set_state(
-                    user_id, SELECTED_CHAT, data=str(selected_id))
 
-                response = 'selected chat "{0}"'.format(title)
-                self.sendMessage(origin, response, parse_mode='HTML')
+# Groups and direct messages (separate handlers)
 
-                chat_id = selected_id
+dm_kwargs = {
+    'filters': Filters.private,
+    'pass_user_data': True
+}
 
-            elif code == SELECTED_CHAT:
-                chat_id = int(self.database.get_state(user_id)[1])
 
-                if command == 'which':
-                    chat = self.database.get_chat_by_id(chat_id)
-                    response = 'searching quotes from "{0}"'.format(chat.title)
-                    return self.sendMessage(origin, response)
+def handle_author(bot, update, args=list(), user_data=None):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
 
-        # Find quotes
+    if not args:
+        return
+    else:
+        args = ' '.join(args)
 
-        if command == 'random':
-            result = self.database.get_random_quote(chat_id)
+    result = database.get_random_quote(chat_id, name=args)
 
-            if result is None:
-                response = "no quotes in database"
-                self.sendMessage(origin, response)
-            else:
-                response = self._format_quote(*result)
-                self._send_quote(origin, response, result.quote.id)
+    if result is None:
+        response = 'no quotes found by author "{}"'.format(args)
+    else:
+        response = format_quote(*result)
 
-        elif command == 'quotes':
-            if not args:
-                count = self.database.get_quote_count(chat_id)
-                response = "{0} quotes in this chat".format(count)
-            else:
-                count = self.database.get_quote_count(chat_id, search=args)
-                response = ('{0} quotes in this chat '
-                    'for search term "{1}"').format(count, args)
+    update.message.reply_text(response)
 
-            self.sendMessage(origin, response, reply_to_message_id=message_id)
+handler_author = CommandHandler(
+    'author', handle_author, filters=Filters.group, pass_args=True)
+_handler_author_dm = CommandHandler(
+    'author', handle_author, pass_args=True, **dm_kwargs)
 
-        elif command == 'stats':
-            # Overall
-            total_count = self.database.get_quote_count(chat_id)
-            first_quote_dt = self.database.get_first_quote(chat_id).sent_at
 
-            response = list()
+def handle_quotes(bot, update, args=list(), user_data=None):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
 
-            response.append("<b>Total quote count</b>")
-            response.append("• {0} quotes since {1}".format(total_count,
-                datetime.fromtimestamp(first_quote_dt).strftime(TIME_FORMAT)))
-            response.append("")
+    args = ' '.join(args)
 
-            # Users
-            most_quoted = self.database.get_most_quoted(chat_id, limit=5)
+    if not args:
+        count = database.get_quote_count(chat_id)
+        response = "{0} quotes in this chat".format(count)
+    else:
+        count = database.get_quote_count(chat_id, search=args)
+        response = ('{0} quotes in this chat '
+            'for search term "{1}"').format(count, args)
 
-            response.append("<b>Users with the most quotes</b>")
-            for count, name in most_quoted:
-                response.append("• {0} ({1:.1%}): {2}".format(
-                    count, count / total_count, name))
-            response.append("")
+    update.message.reply_text(response, parse_mode='HTML')
 
-            added_most = self.database.get_most_quotes_added(chat_id, limit=5)
+handler_quotes = CommandHandler(
+    'quotes', handle_quotes, filters=Filters.group, pass_args=True)
+_handler_quotes_dm = CommandHandler(
+    'quotes', handle_quotes, pass_args=True, **dm_kwargs)
 
-            response.append("<b>Users who add the most quotes</b>")
-            for count, name in added_most:
-                response.append("• {0} ({1:.1%}): {2}".format(
-                    count, count / total_count, name))
 
-            self.sendMessage(origin, '\n'.join(response), parse_mode='HTML')
+def handle_random(bot, update, user_data=None):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
 
-        elif command == 'author':
-            if not args:
-                return
+    result = database.get_random_quote(chat_id)
 
-            result = self.database.get_random_quote(chat_id, name=args)
+    if result is None:
+        response = "no quotes in database"
+    else:
+        response = format_quote(*result)
 
-            if result is None:
-                response = 'no quotes found by author "{}"'.format(args)
-                self.sendMessage(origin, response)
-            else:
-                response = self._format_quote(*result)
-                self._send_quote(origin, response, result.quote.id)
+    update.message.reply_text(response, parse_mode='HTML')
 
-        elif command == 'search':
-            if not args:
-                return
+handler_random = CommandHandler(
+    'random', handle_random, filters=Filters.group)
+_handler_random_dm = CommandHandler(
+    'random', handle_random, **dm_kwargs)
 
-            result = self.database.search_quote(chat_id, args)
 
-            if result is None:
-                response = 'no quotes found for search terms "{}"'.format(args)
-                self.sendMessage(origin, response)
-            else:
-                response = self._format_quote(*result)
-                self._send_quote(origin, response, result.quote.id)
+def handle_search(bot, update, args=list(), user_data=None):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
+
+    if not args:
+        return
+    else:
+        args = ' '.join(args)
+
+    result = database.search_quote(chat_id, args)
+
+    if result is None:
+        response = 'no quotes found for search terms "{}"'.format(args)
+    else:
+        response = format_quote(*result)
+
+    update.message.reply_text(response, parse_mode='HTML')
+
+handler_search = CommandHandler(
+    'search', handle_search, filters=Filters.group, pass_args=True)
+_handler_search_dm = CommandHandler(
+    'search', handle_search, pass_args=True, **dm_kwargs)
+
+
+def handle_stats(bot, update, user_data=None):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
+
+    # Overall
+    total_count = database.get_quote_count(chat_id)
+    first_quote_dt = database.get_first_quote(chat_id).sent_at
+
+    response = list()
+
+    response.append("<b>Total quote count</b>")
+    response.append("• {0} quotes since {1}".format(total_count,
+        datetime.fromtimestamp(first_quote_dt).strftime(TIME_FORMAT)))
+    response.append("")
+
+    # Users
+    most_quoted = database.get_most_quoted(chat_id, limit=5)
+
+    response.append("<b>Users with the most quotes</b>")
+    for count, name in most_quoted:
+        response.append("• {0} ({1:.1%}): {2}".format(
+            count, count / total_count, name))
+    response.append("")
+
+    added_most = database.get_most_quotes_added(chat_id, limit=5)
+
+    response.append("<b>Users who add the most quotes</b>")
+    for count, name in added_most:
+        response.append("• {0} ({1:.1%}): {2}".format(
+            count, count / total_count, name))
+
+    update.message.reply_text('\n'.join(response), parse_mode='HTML')
+
+handler_stats = CommandHandler(
+    'stats', handle_stats, filters=Filters.group)
+_handler_stats_dm = CommandHandler(
+    'stats', handle_stats, **dm_kwargs)
+
+
+# Direct messages only
+
+
+def handle_cancel(bot, update, user_data):
+    user_data['current'] = None
+    update.message.reply_text('canceled')
+    return ConversationHandler.END
+
+_handler_cancel = CommandHandler(
+    'cancel', handle_cancel, **dm_kwargs)
+
+
+def handle_start(bot, update, user_data):
+    user_id = update.message.from_user.id
+
+    chats = database.get_chats(user_id)
+
+    if not chats:
+        response = "<b>Chat selection</b>\nno chats found"
+        update.message.reply_text(response, parse_mode='HTML')
+
+    response = [
+        "<b>Chat selection</b>",
+        "Choose a chat by its number or title:",
+        "",
+    ]
+
+    mapping = []
+    for i, (chat_id, chat_title) in enumerate(chats):
+        response.append("<b>[{0}]</b> {1}".format(i, chat_title))
+        mapping.append([i, chat_id, chat_title])
+
+    user_data['choices'] = mapping
+
+    response = '\n'.join(response)
+
+    update.message.reply_text(response, parse_mode='HTML')
+
+    return SELECT_CHAT
+
+_handler_start = CommandHandler(
+    'start', handle_start, **dm_kwargs)
+_handler_chats = CommandHandler(
+    'chats', handle_start, **dm_kwargs)
+
+dm_start_handlers = [_handler_start, _handler_chats]
+
+
+def handle_select_chat(bot, update, user_data):
+    choice = update.message.text
+
+    try:
+        i = int(choice)
+        _, selected_id, title = user_data['choices'][i]
+    except IndexError:
+        update.message.reply_text("invalid chat number")
+        return SELECT_CHAT
+    except ValueError:
+        try:
+            _, selected_id, title = next(filter(
+                lambda chat: choice.lower() in chat[2].lower(),
+                user_data['choices']))
+        except StopIteration:
+            update.message.reply_text("no titles matched")
+            return SELECT_CHAT
+
+    user_data['current'] = selected_id
+
+    response = 'selected chat "{0}"'.format(title)
+    update.message.reply_text(response, parse_mode='HTML')
+
+    return SELECTED_CHAT
+
+_handler_select_chat = MessageHandler(
+    Filters.text, handle_select_chat, pass_user_data=True)
+
+
+def handle_which(bot, update, user_data):
+    chat = database.get_chat_by_id(user_data['current'])
+
+    response = 'searching quotes from "{0}"'.format(chat.title)
+    update.message.reply_text(response)
+
+_handler_which = CommandHandler(
+    'which', handle_which, **dm_kwargs)
+
+
+dm_handlers = [v for k, v in globals().items() if
+    k.startswith('_handler') and k.endswith('_dm')]
+
+handler_dm = ConversationHandler(
+    entry_points=dm_start_handlers,
+    states={
+        SELECT_CHAT: [_handler_select_chat] + dm_start_handlers,
+        SELECTED_CHAT: [_handler_which] + dm_start_handlers + dm_handlers,
+    },
+    fallbacks=[_handler_cancel]
+)
 
 
 def main():
-    with open('tokens/soup.txt', 'r') as f:
-        token = f.read().strip()
+    handlers = [v for k, v in globals().items() if k.startswith('handler')]
 
-    bot = QuoteBot(token)
-    bot.message_loop()
-
-    while True:
-        time.sleep(10)
+    quote = QuoteBot(token, username, handlers)
+    quote.run()
 
 
 if __name__ == '__main__':
