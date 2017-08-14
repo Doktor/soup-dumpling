@@ -5,11 +5,11 @@ from datetime import datetime
 from html import escape
 from subprocess import check_output
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import (CommandHandler, ConversationHandler, Filters,
-    MessageHandler, Updater)
+from telegram.ext import CommandHandler, Filters, MessageHandler, Updater
 
 from classes import Chat, User
 from database import QuoteDatabase
+from handlers import ConversationHandlerFiltered
 
 logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
@@ -485,13 +485,15 @@ _handler_which = CommandHandler(
 dm_handlers = [v for k, v in globals().items() if
     k.startswith('_handler') and k.endswith('_dm')]
 
-handler_dm = ConversationHandler(
+handler_dm = ConversationHandlerFiltered(
+    filters=Filters.private,
     entry_points=dm_start_handlers,
     states={
-        SELECT_CHAT: [_handler_select_chat] + dm_start_handlers,
-        SELECTED_CHAT: [_handler_which] + dm_start_handlers + dm_handlers,
+        SELECT_CHAT: [_handler_select_chat],
+        SELECTED_CHAT: [_handler_which] + dm_handlers,
     },
-    fallbacks=[_handler_cancel]
+    fallbacks=[_handler_cancel],
+    allow_reentry=True
 )
 
 
