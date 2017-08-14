@@ -71,7 +71,7 @@ def chunks(l, size):
 def format_quote(quote, user):
     date = datetime.fromtimestamp(quote.sent_at).strftime(TIME_FORMAT)
     message = '"{text}" - {name}\n<i>{date}</i>'.format(
-        text=quote.content, name=user.first_name, date=date)
+        text=quote.content_html, name=user.first_name, date=date)
     return message
 
 
@@ -219,7 +219,7 @@ def handle_addquote(bot, update):
 
     result = database.add_quote(
         chat_id, quote.message_id, sent_at, sent_by.id,
-        quote.text_html, quoted_by.id)
+        quote.text, quote.text_html, quoted_by.id)
 
     if result == QuoteDatabase.QUOTE_ADDED:
         response = "quote added"

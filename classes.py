@@ -47,13 +47,13 @@ class Chat:
 
 class Quote:
     def __init__(self, id_, chat_id, message_id, sent_at, sent_by,
-            content, quoted_by=None):
+            content_html, quoted_by=None):
         self.id = id_
         self.chat_id = chat_id
         self.message_id = message_id
         self.sent_at = sent_at
         self.sent_by = sent_by
-        self.content = content
+        self.content_html = content_html
         self.quoted_by = quoted_by
 
     @classmethod

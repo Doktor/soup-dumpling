@@ -206,7 +206,8 @@ class QuoteDatabase:
         """Returns the first quote added in the given chat."""
         self.connect()
 
-        select = """SELECT * FROM quote
+        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
+            content_html FROM quote
             WHERE chat_id = ?
             ORDER BY sent_at ASC
             LIMIT 1"""
@@ -221,7 +222,7 @@ class QuoteDatabase:
 
         if name is None:
             select = """SELECT id, chat_id, message_id, sent_at, sent_by,
-                content FROM quote
+                content_html FROM quote
                 WHERE chat_id = ?
                 ORDER BY RANDOM() LIMIT 1;"""
             self.c.execute(select, (chat_id,))
@@ -254,8 +255,8 @@ class QuoteDatabase:
         who wrote the quote."""
         self.connect()
 
-        select = """SELECT id, chat_id, message_id, sent_at, sent_by, content
-            FROM quote
+        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
+            content_html FROM quote
             WHERE content LIKE ?
             ORDER BY RANDOM() LIMIT 1;"""
         self.c.execute(select, ('%' + search_terms + '%',))
@@ -268,7 +269,8 @@ class QuoteDatabase:
         user = self.get_user_by_id(quote.sent_by)
         return Result(quote, user)
 
-    def add_quote(self, chat_id, m_id, sent_at, sent_by, content, quoted_by):
+    def add_quote(self,
+            chat_id, m_id, sent_at, sent_by, content, content_html, quoted_by):
         """Inserts a quote."""
         self.connect()
 
@@ -282,9 +284,9 @@ class QuoteDatabase:
             return self.QUOTE_ALREADY_EXISTS
 
         insert = ("INSERT INTO quote (chat_id, message_id, sent_at, sent_by,"
-            "content, quoted_by) VALUES (?, ?, ?, ?, ?, ?);")
+            "content, content_html, quoted_by) VALUES (?, ?, ?, ?, ?, ?, ?);")
         self.c.execute(insert,
-            (chat_id, m_id, sent_at, sent_by, content, quoted_by))
+            (chat_id, m_id, sent_at, sent_by, content, content_html, quoted_by))
         self.db.commit()
 
         return self.QUOTE_ADDED

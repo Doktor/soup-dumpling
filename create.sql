@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS quote (
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
     content TEXT,
+    content_html TEXT,
     quoted_by INTEGER REFERENCES user (id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
