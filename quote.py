@@ -33,7 +33,7 @@ COMMIT_DATE = check_output(DATE_ARGS, encoding='utf8')[:19]
 # The relative date is used for the 'about' command
 DATE_ARGS[4] = '--date=relative'
 
-VERSION = (1, 1, 0)
+VERSION = (1, 2, 0)
 
 # Codes for direct message states
 SELECT_CHAT = 1
