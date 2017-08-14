@@ -2,6 +2,7 @@ import json
 import logging
 import time
 from datetime import datetime
+from html import escape
 from subprocess import check_output
 from telegram import ReplyKeyboardMarkup
 from telegram.ext import (CommandHandler, ConversationHandler, Filters,
@@ -254,11 +255,11 @@ def handle_author(bot, update, args=list(), user_data=None):
     result = database.get_random_quote(chat_id, name=args)
 
     if result is None:
-        response = 'no quotes found by author "{}"'.format(args)
+        response = 'no quotes found by author "{}"'.format(escape(args))
     else:
         response = format_quote(*result)
 
-    update.message.reply_text(response)
+    update.message.reply_text(response, parse_mode='HTML')
 
 handler_author = CommandHandler(
     'author', handle_author, filters=Filters.group, pass_args=True)
@@ -282,7 +283,7 @@ def handle_quotes(bot, update, args=list(), user_data=None):
         response = ('{0} quotes in this chat '
             'for search term "{1}"').format(count, args)
 
-    update.message.reply_text(response, parse_mode='HTML')
+    update.message.reply_text(response)
 
 handler_quotes = CommandHandler(
     'quotes', handle_quotes, filters=Filters.group, pass_args=True)
@@ -325,11 +326,11 @@ def handle_search(bot, update, args=list(), user_data=None):
     result = database.search_quote(chat_id, args)
 
     if result is None:
-        response = 'no quotes found for search terms "{}"'.format(args)
+        response = 'no quotes found for search terms "{}"'.format(escape(args))
+        update.message.reply_text(response)
     else:
         response = format_quote(*result)
-
-    update.message.reply_text(response, parse_mode='HTML')
+        update.message.reply_text(response, parse_mode='HTML')
 
 handler_search = CommandHandler(
     'search', handle_search, filters=Filters.group, pass_args=True)
@@ -359,16 +360,16 @@ def handle_stats(bot, update, user_data=None):
 
     response.append("<b>Users with the most quotes</b>")
     for count, name in most_quoted:
-        response.append("• {0} ({1:.1%}): {2}".format(
-            count, count / total_count, name))
+        line = "• {0} ({1:.1%}): {2}".format(count, count / total_count, name)
+        response.append(escape(line))
     response.append("")
 
     added_most = database.get_most_quotes_added(chat_id, limit=5)
 
     response.append("<b>Users who add the most quotes</b>")
     for count, name in added_most:
-        response.append("• {0} ({1:.1%}): {2}".format(
-            count, count / total_count, name))
+        line = "• {0} ({1:.1%}): {2}".format(count, count / total_count, name)
+        response.append(escape(line))
 
     update.message.reply_text('\n'.join(response), parse_mode='HTML')
 
@@ -407,7 +408,7 @@ def handle_start(bot, update, user_data):
 
     mapping = []
     for i, (chat_id, chat_title) in enumerate(chats):
-        response.append("<b>[{0}]</b> {1}".format(i, chat_title))
+        response.append("<b>[{0}]</b> {1}".format(i, escape(chat_title)))
         mapping.append([i, chat_id, chat_title])
 
     user_data['choices'] = mapping
@@ -457,7 +458,7 @@ def handle_select_chat(bot, update, user_data):
     user_data['current'] = selected_id
 
     response = 'selected chat "{0}"'.format(title)
-    update.message.reply_text(response, parse_mode='HTML')
+    update.message.reply_text(response)
 
     return SELECTED_CHAT
 
@@ -468,7 +469,7 @@ _handler_select_chat = MessageHandler(
 def handle_which(bot, update, user_data):
     chat = database.get_chat_by_id(user_data['current'])
 
-    response = 'searching quotes from "{0}"'.format(chat.title)
+    response = 'searching quotes from "{0}"'.format(escape(chat.title))
     update.message.reply_text(response)
 
 _handler_which = CommandHandler(
