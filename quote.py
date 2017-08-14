@@ -3,6 +3,7 @@ import logging
 import time
 from datetime import datetime
 from subprocess import check_output
+from telegram import ReplyKeyboardMarkup
 from telegram.ext import (CommandHandler, ConversationHandler, Filters,
     MessageHandler, Updater)
 
@@ -60,6 +61,11 @@ class QuoteBot:
 
 
 # Helper functions
+
+
+def chunks(l, size):
+    for i in range(0, len(l), size):
+        yield l[i:i + size]
 
 
 def format_quote(quote, user):
@@ -344,10 +350,20 @@ def handle_start(bot, update, user_data):
         mapping.append([i, chat_id, chat_title])
 
     user_data['choices'] = mapping
-
     response = '\n'.join(response)
 
-    update.message.reply_text(response, parse_mode='HTML')
+    if len(chats) < 6:
+        # Use a reply keyboard
+        titles = [chat[1] for chat in chats]
+        reply_keyboard = list(chunks(titles, 2))
+        markup = ReplyKeyboardMarkup(
+            reply_keyboard, one_time_keyboard=True, resize_keyboard=True)
+
+        update.message.reply_text(
+            response, parse_mode='HTML', reply_markup=markup)
+    else:
+        # Too many choices: send the choices in a message
+        update.message.reply_text(response, parse_mode='HTML')
 
     return SELECT_CHAT
 
