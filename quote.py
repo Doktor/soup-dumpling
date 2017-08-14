@@ -401,6 +401,7 @@ def handle_start(bot, update, user_data):
     if not chats:
         response = "<b>Chat selection</b>\nno chats found"
         update.message.reply_text(response, parse_mode='HTML')
+        return ConversationHandler.END
 
     response = [
         "<b>Chat selection</b>",
