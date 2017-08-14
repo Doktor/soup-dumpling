@@ -4,7 +4,7 @@ import time
 from datetime import datetime
 from html import escape
 from subprocess import check_output
-from telegram import ReplyKeyboardMarkup
+from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (CommandHandler, ConversationHandler, Filters,
     MessageHandler, Updater)
 
@@ -464,7 +464,7 @@ def handle_select_chat(bot, update, user_data):
     user_data['current'] = selected_id
 
     response = 'selected chat "{0}"'.format(title)
-    update.message.reply_text(response)
+    update.message.reply_text(response, reply_markup=ReplyKeyboardRemove())
 
     return SELECTED_CHAT
 
