@@ -96,44 +96,6 @@ class QuoteDatabase:
 
         return self.c.fetchall()
 
-    def get_state(self, user_id):
-        """Returns the user's browsing state."""
-        self.connect()
-
-        select = "SELECT code, data FROM state WHERE user_id = ?"
-        self.c.execute(select, (user_id,))
-
-        return self.c.fetchone()
-
-    def get_or_create_state(self, user_id):
-        """Returns the user's browsing state, or creates it if it doesn't
-        exist."""
-        self.connect()
-
-        result = self.get_state(user_id)
-
-        if result is None:
-            insert = "INSERT INTO state (user_id, chat_id) VALUES (?, -1)"
-            self.c.execute(insert, (user_id,))
-            self.db.commit()
-
-            return self.get_state(user_id)
-
-        return result
-
-    def set_state(self, user_id, code, data=''):
-        """Sets the user's browsing state."""
-        self.connect()
-
-        if data:
-            update = "UPDATE state SET code = ?, data = ? WHERE user_id = ?"
-            self.c.execute(update, (code, data, user_id))
-        else:
-            update = "UPDATE state SET code = ? WHERE user_id = ?"
-            self.c.execute(update, (code, user_id))
-
-        self.db.commit()
-
     # Chat methods
 
     def get_chat_by_id(self, chat_id):

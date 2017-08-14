@@ -33,7 +33,7 @@ DATE_ARGS[4] = '--date=relative'
 
 VERSION = (1, 1, 0)
 
-# User state codes
+# Codes for direct message states
 SELECT_CHAT = 1
 SELECTED_CHAT = 2
 
