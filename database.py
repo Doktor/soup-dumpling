@@ -4,14 +4,6 @@ import sqlite3
 from classes import Quote, Result, Chat, User
 
 
-ENTITY_TAGS = {
-    'bold': ('<b>', '</b>'),
-    'italic': ('<i>', '</i>'),
-    'code': ('<code>', '</code>'),
-    'pre': ('<pre>', '</pre>'),
-}
-
-
 class QuoteDatabase:
     # Status codes for quotes
     QUOTE_ADDED = 1
@@ -276,37 +268,23 @@ class QuoteDatabase:
         user = self.get_user_by_id(quote.sent_by)
         return Result(quote, user)
 
-    def add_quote(self, chat_id, message_id, sent_at, sent_by, content,
-            entities, quoted_by):
+    def add_quote(self, chat_id, m_id, sent_at, sent_by, content, quoted_by):
         """Inserts a quote."""
         self.connect()
 
         select = ("SELECT * FROM quote "
                   "WHERE chat_id = ? AND message_id = ?;")
-        self.c.execute(select, (chat_id, message_id))
+        self.c.execute(select, (chat_id, m_id))
 
         if self.c.fetchone() is None:
             pass
         else:
             return self.QUOTE_ALREADY_EXISTS
 
-        # Convert text formatting to HTML
-        entities = sorted(entities, key=lambda e: e['offset'], reverse=True)
-
-        for entity in entities:
-            if entity['type'] not in ENTITY_TAGS:
-                continue
-
-            s = entity['offset']
-            e = s + entity['length']
-            s_tag, e_tag = ENTITY_TAGS[entity['type']]
-
-            content = content[0:s] + s_tag + content[s:e] + e_tag + content[e:]
-
         insert = ("INSERT INTO quote (chat_id, message_id, sent_at, sent_by,"
             "content, quoted_by) VALUES (?, ?, ?, ?, ?, ?);")
         self.c.execute(insert,
-            (chat_id, message_id, sent_at, sent_by, content, quoted_by))
+            (chat_id, m_id, sent_at, sent_by, content, quoted_by))
         self.db.commit()
 
         return self.QUOTE_ADDED

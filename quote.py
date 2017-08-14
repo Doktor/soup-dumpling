@@ -217,10 +217,9 @@ def handle_addquote(bot, update):
     database.add_or_update_user(User.from_telegram(sent_by))
     database.add_or_update_user(User.from_telegram(quoted_by))
 
-    # TODO: Update database to use quote.parse_entities()
     result = database.add_quote(
         chat_id, quote.message_id, sent_at, sent_by.id,
-        quote.text, list(), quoted_by.id)
+        quote.text_html, quoted_by.id)
 
     if result == QuoteDatabase.QUOTE_ADDED:
         response = "quote added"
