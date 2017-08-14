@@ -359,7 +359,8 @@ def handle_stats(bot, update, user_data=None):
     most_quoted = database.get_most_quoted(chat_id, limit=5)
 
     response.append("<b>Users with the most quotes</b>")
-    for count, name in most_quoted:
+    for count, first, last in most_quoted:
+        name = "{} {}".format(first, last or '').rstrip()
         line = "• {0} ({1:.1%}): {2}".format(count, count / total_count, name)
         response.append(escape(line))
     response.append("")
@@ -367,7 +368,8 @@ def handle_stats(bot, update, user_data=None):
     added_most = database.get_most_quotes_added(chat_id, limit=5)
 
     response.append("<b>Users who add the most quotes</b>")
-    for count, name in added_most:
+    for count, first, last in added_most:
+        name = "{} {}".format(first, last or '').rstrip()
         line = "• {0} ({1:.1%}): {2}".format(count, count / total_count, name)
         response.append(escape(line))
 

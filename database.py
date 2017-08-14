@@ -149,8 +149,7 @@ class QuoteDatabase:
         to them."""
         self.connect()
 
-        select = """SELECT COUNT(*) AS count,
-            user.first_name || " " || user.last_name
+        select = """SELECT COUNT(*) AS count, user.first_name, user.last_name
             FROM quote INNER JOIN user
             ON quote.sent_by = user.id
             AND quote.chat_id = ?
@@ -165,8 +164,7 @@ class QuoteDatabase:
         """Returns the names of the users who have added the most quotes."""
         self.connect()
 
-        select = """SELECT COUNT(*) AS count,
-            user.first_name || " " || user.last_name
+        select = """SELECT COUNT(*) AS count, user.first_name, user.last_name
             FROM quote INNER JOIN user
             ON quote.quoted_by = user.id
             AND quote.chat_id = ?
@@ -189,7 +187,8 @@ class QuoteDatabase:
             self.c.execute(select, (chat_id,))
         else:
             select = """SELECT COUNT(DISTINCT quote.id),
-                user.first_name || " " || user.last_name AS full_name
+                user.first_name ||
+                    COALESCE(' ' || user.last_name, '') AS full_name
                 FROM quote INNER JOIN user
                 ON quote.sent_by = user.id
                 AND quote.chat_id = ?
@@ -230,7 +229,8 @@ class QuoteDatabase:
             name = name.lstrip('@')
             select = """SELECT
                 quote.id, chat_id, message_id, sent_at, sent_by, content,
-                user.first_name || " " || user.last_name AS full_name
+                user.first_name ||
+                    COALESCE(' ' || user.last_name, '') AS full_name
                 FROM quote INNER JOIN user
                 ON quote.sent_by = user.id
                 AND quote.chat_id = ?
