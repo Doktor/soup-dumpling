@@ -185,8 +185,7 @@ handler_database = MessageHandler(Filters.text, handle_database)
 
 
 def handle_addquote(bot, update):
-    m = update.message
-    chat_id = update.message.chat.id
+    message = update.message
     quote = update.message.reply_to_message
 
     assert quote is not None
@@ -195,10 +194,14 @@ def handle_addquote(bot, update):
     if quote.text is None:
         return
 
-    quoted_by = m.from_user
+    chat_id = message.chat.id
+    message_id = quote.message_id
+    quoted_by = message.from_user
 
     # Forwarded messages
-    if quote.forward_from is not None:
+    is_forward = quote.forward_from is not None
+
+    if is_forward:
         sent_by = quote.forward_from
         sent_at = quote.forward_date.timestamp()
     else:
@@ -219,8 +222,8 @@ def handle_addquote(bot, update):
     database.add_or_update_user(User.from_telegram(quoted_by))
 
     result = database.add_quote(
-        chat_id, quote.message_id, sent_at, sent_by.id,
-        quote.text, quote.text_html, quoted_by.id)
+        chat_id, message_id, is_forward,
+        sent_at, sent_by.id, quote.text, quote.text_html, quoted_by.id)
 
     if result == QuoteDatabase.QUOTE_ADDED:
         response = "quote added"

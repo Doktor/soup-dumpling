@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS quote (
     id INTEGER PRIMARY KEY,
     chat_id INTEGER NOT NULL,
     message_id INTEGER NOT NULL,
+    is_forward BOOLEAN NOT NULL CHECK (is_forward IN (0, 1)),
     sent_at INTEGER NOT NULL,
     sent_by INTEGER NOT NULL REFERENCES user (id)
         ON UPDATE CASCADE
@@ -38,5 +39,6 @@ CREATE TABLE IF NOT EXISTS quote (
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
 
-    UNIQUE(chat_id, message_id) ON CONFLICT ROLLBACK
+    UNIQUE(chat_id, message_id) ON CONFLICT ROLLBACK,
+    UNIQUE(sent_at, sent_by, content_html) ON CONFLICT ROLLBACK
 );

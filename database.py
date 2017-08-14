@@ -269,24 +269,29 @@ class QuoteDatabase:
         user = self.get_user_by_id(quote.sent_by)
         return Result(quote, user)
 
-    def add_quote(self,
-            chat_id, m_id, sent_at, sent_by, content, content_html, quoted_by):
+    def add_quote(self, chat_id, message_id, is_forward,
+            sent_at, sent_by, content, content_html, quoted_by):
         """Inserts a quote."""
         self.connect()
 
-        select = ("SELECT * FROM quote "
-                  "WHERE chat_id = ? AND message_id = ?;")
-        self.c.execute(select, (chat_id, m_id))
+        select = """SELECT * FROM quote
+            WHERE sent_at = ? AND sent_by = ? AND content_html = ?;"""
+        self.c.execute(
+            select, (sent_at, sent_by, content_html))
 
         if self.c.fetchone() is None:
             pass
         else:
             return self.QUOTE_ALREADY_EXISTS
 
-        insert = ("INSERT INTO quote (chat_id, message_id, sent_at, sent_by,"
-            "content, content_html, quoted_by) VALUES (?, ?, ?, ?, ?, ?, ?);")
+        insert = """INSERT INTO quote
+            (chat_id, message_id, is_forward,
+            sent_at, sent_by, content, content_html, quoted_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
+
         self.c.execute(insert,
-            (chat_id, m_id, sent_at, sent_by, content, content_html, quoted_by))
+            (chat_id, message_id, is_forward,
+                sent_at, sent_by, content, content_html, quoted_by))
         self.db.commit()
 
         return self.QUOTE_ADDED
