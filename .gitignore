@@ -1,5 +1,6 @@
 # Database files
 *.db
+*.bak
 
 # Compiled files
 *.py[cod]
