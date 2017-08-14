@@ -105,6 +105,68 @@ def handle_about(bot, update):
 handler_about = CommandHandler('about', handle_about)
 
 
+def handle_help(bot, update):
+    kwargs = {
+        'version': '.'.join((str(n) for n in VERSION)),
+        'readme': REPOSITORY_URL + "/blob/master/README.md"
+    }
+
+    response = [
+        '"Nice help!" - <b>Soup Dumpling {version}</b>',
+        '',
+        '<b>Groups</b>',
+        '• /addquote: add a quote',
+        '',
+        '<b>Anywhere</b>',
+        '• /about: show detailed version/repository info',
+        '• /author &lt;name&gt;: show a random quote by this person',
+        '• /quotes [term]: show how many quotes match the search term',
+        '• /help: show this message',
+        '• /random: show a random quote',
+        '• /search &lt;term&gt;: show a random quote matching the search term',
+        '• /stats: show quote statistics',
+        '',
+        '<b>Direct messages</b>',
+        '• /chats or /start: select a chat to browse',
+        '• /which: show which chat you\'re browsing',
+        '',
+        'For advanced help, view the <a href="{readme}">README</a>'
+    ]
+
+    response = '\n'.join(response).format(**kwargs)
+
+    update.message.reply_text(response,
+        disable_web_page_preview=True, quote=False, parse_mode='HTML')
+
+handler_help = CommandHandler('help', handle_help, filters=Filters.private)
+
+
+def handle_help_group(bot, update):
+    kwargs = {
+        'version': '.'.join((str(n) for n in VERSION)),
+        'username': username,
+    }
+
+    response = [
+        '"Nice help!" - <b>Soup Dumpling {version}</b>',
+        '',
+        '• <b>Groups</b>: /addquote',
+        ('• <b>Anywhere</b>: /about, /author &lt;name&gt;, /quotes [term], '
+        '/help, /random, /search &lt;term&gt;, /stats'),
+        '• <b>Direct messages</b>: /chats or /start, /which',
+        '',
+        'For extended help, DM <code>/help</code> to {username}',
+    ]
+
+    response = '\n'.join(response).format(**kwargs)
+
+    update.message.reply_text(response,
+        disable_web_page_preview=True, quote=False, parse_mode='HTML')
+
+handler_help_group = CommandHandler(
+    'help', handle_help_group, filters=Filters.group)
+
+
 def handle_database(bot, update):
     user = update.message.from_user
     chat = update.message.chat
