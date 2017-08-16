@@ -39,6 +39,9 @@ VERSION = (1, 2, 0)
 SELECT_CHAT = 1
 SELECTED_CHAT = 2
 
+# Truncate long quotes if they contain at least this many characters
+TRUNCATE_LENGTH = 800
+
 database = QuoteDatabase()
 
 with open('tokens/soup.txt', 'r') as f:
@@ -70,9 +73,17 @@ def chunks(l, size):
 
 
 def format_quote(quote, user):
+    text = quote.content_html
     date = datetime.fromtimestamp(quote.sent_at).strftime(TIME_FORMAT)
-    message = '"{text}" - {name}\n<i>{date}</i>'.format(
-        text=quote.content_html, name=user.first_name, date=date)
+
+    # Truncate long quotes
+    if len(text) > TRUNCATE_LENGTH:
+        text = text[:TRUNCATE_LENGTH]
+        template = '"{text}..." (truncated) - {name}\n<i>{date}</i>'
+    else:
+        template = '"{text}" - {name}\n<i>{date}</i>'
+
+    message = template.format(text=text, name=user.first_name, date=date)
     return message
 
 
