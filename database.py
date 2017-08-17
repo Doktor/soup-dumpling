@@ -203,17 +203,32 @@ class QuoteDatabase:
 
     def get_first_quote(self, chat_id):
         """Returns the first quote added in the given chat."""
+        return self._get_edge_quote(chat_id, 'ASC')
+
+    def get_last_quote(self, chat_id):
+        """Returns the last quote added in the given chat."""
+        return self._get_edge_quote(chat_id, 'DESC')
+
+    def _get_edge_quote(self, chat_id, direction):
+        """Returns the first/last quote added in the given chat."""
         self.connect()
+
+        assert direction in ['ASC', 'DESC']
 
         select = """SELECT id, chat_id, message_id, sent_at, sent_by,
             content_html FROM quote
             WHERE chat_id = ?
-            ORDER BY sent_at ASC
-            LIMIT 1"""
+            ORDER BY sent_at {}
+            LIMIT 1""".format(direction)
         self.c.execute(select, (chat_id,))
 
         row = self.c.fetchone()
-        return Quote.from_database(row)
+        if row is None:
+            return None
+
+        quote = Quote.from_database(row)
+        user = self.get_user_by_id(quote.sent_by)
+        return Result(quote, user)
 
     def get_random_quote(self, chat_id, name=None):
         """Returns a random quote, and the user who wrote the quote."""

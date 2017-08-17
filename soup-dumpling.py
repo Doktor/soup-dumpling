@@ -370,15 +370,25 @@ def handle_stats(bot, update, user_data=None):
     else:
         chat_id = user_data['current']
 
-    # Overall
-    total_count = database.get_quote_count(chat_id)
-    first_quote_dt = database.get_first_quote(chat_id).sent_at
-
     response = list()
 
-    response.append("<b>Total quote count</b>")
-    response.append("• {0} quotes since {1}".format(total_count,
-        datetime.fromtimestamp(first_quote_dt).strftime(TIME_FORMAT)))
+    # Total quotes
+    total_count = database.get_quote_count(chat_id)
+
+    response.append("<b>Overall</b>")
+    response.append("• {0} total quotes".format(total_count))
+
+    # First and last quote
+    first = database.get_first_quote(chat_id)
+    last = database.get_last_quote(chat_id)
+
+    first_ts = datetime.fromtimestamp(first.quote.sent_at).strftime(TIME_FORMAT)
+    last_ts = datetime.fromtimestamp(last.quote.sent_at).strftime(TIME_FORMAT)
+
+    response.append(
+        "• First: {0} by {1}".format(first_ts, first.user.first_name))
+    response.append(
+        "• Last: {0} by {1}".format(last_ts, last.user.first_name))
     response.append("")
 
     # Users
