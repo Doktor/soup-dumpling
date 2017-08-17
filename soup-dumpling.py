@@ -382,6 +382,13 @@ def handle_stats(bot, update, user_data=None):
     first = database.get_first_quote(chat_id)
     last = database.get_last_quote(chat_id)
 
+    if first is None:
+        assert last is None
+
+        response = "no quotes in database"
+        update.message.reply_text(response)
+        return
+
     first_ts = datetime.fromtimestamp(first.quote.sent_at).strftime(TIME_FORMAT)
     last_ts = datetime.fromtimestamp(last.quote.sent_at).strftime(TIME_FORMAT)
 
