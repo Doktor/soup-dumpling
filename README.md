@@ -30,7 +30,7 @@ To report bugs or service outages, send me a direct message on [Twitter](https:/
 This method isn't recommended for running the bot long-term.
 
 1. Install the required packages: `pip install -r requirements.txt`
-2. Start the bot: `python3.6 quote.py`
+2. Start the bot: `python3.6 soup-dumpling.py`
 
 # Commands
 
