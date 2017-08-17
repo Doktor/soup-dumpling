@@ -90,6 +90,15 @@ def format_quote(quote, user):
     return message
 
 
+def format_users(users, total_count):
+    ret = []
+    for count, first, last in users:
+        name = "{} {}".format(first, last or '').rstrip()
+        line = "• {0} ({1:.1%}): {2}".format(count, count / total_count, name)
+        ret.append(escape(line))
+    return ret
+
+
 # Groups and direct messages
 
 
@@ -137,6 +146,8 @@ def handle_help(bot, update):
         '• /author &lt;name&gt;: show a random quote by this person',
         '• /quotes [term]: show how many quotes match the search term',
         '• /help: show this message',
+        '• /most_added: show who adds the most quotes',
+        '• /most_quoted: show who has been quoted the most',
         '• /random: show a random quote',
         '• /search &lt;term&gt;: show a random quote matching the search term',
         '• /stats: show quote statistics',
@@ -166,8 +177,9 @@ def handle_help_group(bot, update):
         '"Nice help!" - <b>Soup Dumpling {version}</b>',
         '',
         '• <b>Groups</b>: /addquote',
-        ('• <b>Anywhere</b>: /about, /author &lt;name&gt;, /quotes [term], '
-        '/help, /random, /search &lt;term&gt;, /stats'),
+        ('• <b>Anywhere</b>: /about, /author &lt;name&gt;, /count [term], '
+        '/help, /most_added, /most_quoted, /random, /search &lt;term&gt;, '
+        '/stats'),
         '• <b>Direct messages</b>: /chats or /start, /which',
         '',
         'For extended help, DM <code>/help</code> to {username}',
@@ -364,6 +376,48 @@ _handler_search_dm = CommandHandler(
     'search', handle_search, pass_args=True, **dm_kwargs)
 
 
+def handle_most_quoted(bot, update, user_data=None):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
+
+    total_count = database.get_quote_count(chat_id)
+    most_quoted = database.get_most_quoted(chat_id, limit=15)
+
+    response = []
+    response.append("<b>Users with the most quotes</b>")
+    response.extend(format_users(most_quoted, total_count))
+
+    update.message.reply_text('\n'.join(response), parse_mode='HTML')
+
+handler_most_quoted = CommandHandler(
+    'most_quoted', handle_most_quoted, filters=Filters.group)
+_handler_most_quoted_dm = CommandHandler(
+    'most_quoted', handle_most_quoted, **dm_kwargs)
+
+
+def handle_most_added(bot, update, user_data=None):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
+
+    total_count = database.get_quote_count(chat_id)
+    most_added = database.get_most_quotes_added(chat_id, limit=15)
+
+    response = []
+    response.append("<b>Users who add the most quotes</b>")
+    response.extend(format_users(most_added, total_count))
+
+    update.message.reply_text('\n'.join(response), parse_mode='HTML')
+
+handler_most_added = CommandHandler(
+    'most_added', handle_most_added, filters=Filters.group)
+_handler_most_added_dm = CommandHandler(
+    'most_added', handle_most_added, **dm_kwargs)
+
+
 def handle_stats(bot, update, user_data=None):
     if user_data is None:
         chat_id = update.message.chat_id
@@ -402,19 +456,13 @@ def handle_stats(bot, update, user_data=None):
     most_quoted = database.get_most_quoted(chat_id, limit=5)
 
     response.append("<b>Users with the most quotes</b>")
-    for count, first, last in most_quoted:
-        name = "{} {}".format(first, last or '').rstrip()
-        line = "• {0} ({1:.1%}): {2}".format(count, count / total_count, name)
-        response.append(escape(line))
+    response.extend(format_users(most_quoted, total_count))
     response.append("")
 
     added_most = database.get_most_quotes_added(chat_id, limit=5)
 
     response.append("<b>Users who add the most quotes</b>")
-    for count, first, last in added_most:
-        name = "{} {}".format(first, last or '').rstrip()
-        line = "• {0} ({1:.1%}): {2}".format(count, count / total_count, name)
-        response.append(escape(line))
+    response.extend(format_users(added_most, total_count))
 
     update.message.reply_text('\n'.join(response), parse_mode='HTML')
 

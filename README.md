@@ -39,6 +39,8 @@ This method isn't recommended for running the bot long-term.
 - `/about` Displays the current version, commit hash, and a link to this repository.
 - `/author <name>` Displays a random quote from a user whose name or username contains `name`.
 - `/help` Displays command reference. In groups, this only sends the list of available commands to reduce chat spam.
+- `/most_added` Displays the top 15 users who add the most quotes.
+- `/most_quoted` Displays the top 15 users with the most quotes.
 - `/quotes [search]` Displays the number of quotes added, or the number of quotes whose text or author's name contains `search`.
 - `/random` Displays a random quote.
 - `/search <term>` Displays a random quote whose text contains `term`.
