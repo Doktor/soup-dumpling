@@ -5,10 +5,22 @@ Soup Dumpling is a simple quote bot for the Telegram chat client. It's written i
 # Setup
 
 1. Clone this repository: `git clone https://github.com/Doktor/soup-dumpling.git`
-2. Install the required packages: `pip install -r requirements.txt`
-3. Add your API key to the file `tokens/soup.txt`. To get an API key, message [@BotFather](https://telegram.me/BotFather).
-4. Add the bot's username, including the preceding `@` symbol, to `tokens/username.txt`.
-5. Start the bot: `python3 quote.py`.
+2. Add your API key to the file `tokens/soup.txt`. To get an API key, message [@BotFather](https://telegram.me/BotFather).
+3. Add the bot's username, including the preceding `@` symbol, to `tokens/username.txt`.
+
+# Running
+
+## Supervisor
+
+[Supervisor](http://supervisord.org/) is the preferred way of running the bot. Requires `supervisor` 3.0+ and `virtualenvwrapper`.
+
+1. Run the install script: `source install.sh`
+2. To stop/start the bot: `supervisorctl stop/start soup-dumpling`
+
+## Temporary
+
+1. Install the required packages: `pip install -r requirements.txt`
+2. Start the bot: `python3 quote.py`.
 
 # Commands
 
