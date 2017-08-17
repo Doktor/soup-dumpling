@@ -42,6 +42,9 @@ SELECTED_CHAT = 2
 # Truncate long quotes if they contain at least this many characters
 TRUNCATE_LENGTH = 800
 
+# Truncate search terms when no quotes are found
+TRUNCATE_ARGS_LENGTH = 100
+
 database = QuoteDatabase()
 
 with open('tokens/soup.txt', 'r') as f:
@@ -268,6 +271,9 @@ def handle_author(bot, update, args=list(), user_data=None):
 
     result = database.get_random_quote(chat_id, name=args)
 
+    if len(args) > TRUNCATE_ARGS_LENGTH:
+        args = args[:TRUNCATE_ARGS_LENGTH] + '...'
+
     if result is None:
         response = 'no quotes found by author "{}"'.format(escape(args))
     else:
@@ -288,6 +294,9 @@ def handle_quotes(bot, update, args=list(), user_data=None):
         chat_id = user_data['current']
 
     args = ' '.join(args)
+
+    if len(args) > TRUNCATE_ARGS_LENGTH:
+        args = args[:TRUNCATE_ARGS_LENGTH] + '...'
 
     if not args:
         count = database.get_quote_count(chat_id)
@@ -338,6 +347,9 @@ def handle_search(bot, update, args=list(), user_data=None):
         args = ' '.join(args)
 
     result = database.search_quote(chat_id, args)
+
+    if len(args) > TRUNCATE_ARGS_LENGTH:
+        args = args[:TRUNCATE_ARGS_LENGTH] + '...'
 
     if result is None:
         response = 'no quotes found for search terms "{}"'.format(escape(args))
