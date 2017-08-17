@@ -352,7 +352,7 @@ def handle_search(bot, update, args=list(), user_data=None):
         args = args[:TRUNCATE_ARGS_LENGTH] + '...'
 
     if result is None:
-        response = 'no quotes found for search terms "{}"'.format(escape(args))
+        response = 'no quotes found for search terms "{}"'.format(args)
         update.message.reply_text(response)
     else:
         response = format_quote(*result)
