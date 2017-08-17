@@ -22,6 +22,12 @@ Soup Dumpling is a simple quote bot for the Telegram chat client. It's written i
 1. Install the required packages: `pip install -r requirements.txt`
 2. Start the bot: `python3 quote.py`.
 
+# Public instance
+
+I run a public instance of Soup Dumpling with the username [@soup_dumpling_bot](https://t.me/soup_dumpling_bot). You're welcome to add it to your groups. It runs 24/7 on my server, but I make no guarantees about uptime!
+
+To report bugs or service outages, send me a direct message on [Twitter](https://twitter.com/DoktorTheHusky) and I'll respond as soon as possible.
+
 # Commands
 
 ## Anywhere
