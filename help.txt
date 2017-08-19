@@ -1,0 +1,22 @@
+"Nice help!" - <b>Soup Dumpling {version}</b>
+
+<b>Groups</b>
+• /addquote: add a quote
+
+<b>Anywhere</b>
+• /about: show detailed version/repository info
+• /author &lt;name&gt;: show a random quote by &lt;name&gt;
+• /count: show how many quotes exist
+• /count &lt;term&gt;: show how many quotes match [term]
+• /help: show this message
+• /most_added: show who adds the most quotes
+• /most_quoted: show who has been quoted the most
+• /random: show a random quote
+• /search &lt;term&gt;: show a random quote matching &lt;term&gt;
+• /stats: show quote statistics
+
+<b>Direct messages</b>
+• /chats or /start: select a chat to browse
+• /which: show which chat you're browsing
+
+For advanced help, view the <a href="{readme}">README</a>

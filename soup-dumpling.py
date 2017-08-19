@@ -129,37 +129,16 @@ def handle_about(bot, update):
 handler_about = CommandHandler('about', handle_about)
 
 
+with open('help.txt', 'r', encoding='utf8') as f:
+    help_text = f.read().strip()
+
+
 def handle_help(bot, update):
     kwargs = {
         'version': '.'.join((str(n) for n in VERSION)),
         'readme': REPOSITORY_URL + "/blob/master/README.md"
     }
-
-    response = [
-        '"Nice help!" - <b>Soup Dumpling {version}</b>',
-        '',
-        '<b>Groups</b>',
-        '• /addquote: add a quote',
-        '',
-        '<b>Anywhere</b>',
-        '• /about: show detailed version/repository info',
-        '• /author &lt;name&gt;: show a random quote by this person',
-        '• /count [term]: show how many quotes match the search term',
-        '• /help: show this message',
-        '• /most_added: show who adds the most quotes',
-        '• /most_quoted: show who has been quoted the most',
-        '• /random: show a random quote',
-        '• /search &lt;term&gt;: show a random quote matching the search term',
-        '• /stats: show quote statistics',
-        '',
-        '<b>Direct messages</b>',
-        '• /chats or /start: select a chat to browse',
-        '• /which: show which chat you\'re browsing',
-        '',
-        'For advanced help, view the <a href="{readme}">README</a>'
-    ]
-
-    response = '\n'.join(response).format(**kwargs)
+    response = help_text.format(**kwargs)
 
     update.message.reply_text(response,
         disable_web_page_preview=True, quote=False, parse_mode='HTML')
