@@ -144,7 +144,7 @@ def handle_help(bot, update):
         '<b>Anywhere</b>',
         '• /about: show detailed version/repository info',
         '• /author &lt;name&gt;: show a random quote by this person',
-        '• /quotes [term]: show how many quotes match the search term',
+        '• /count [term]: show how many quotes match the search term',
         '• /help: show this message',
         '• /most_added: show who adds the most quotes',
         '• /most_quoted: show who has been quoted the most',
@@ -299,7 +299,7 @@ _handler_author_dm = CommandHandler(
     'author', handle_author, pass_args=True, **dm_kwargs)
 
 
-def handle_quotes(bot, update, args=list(), user_data=None):
+def handle_count(bot, update, args=list(), user_data=None):
     if user_data is None:
         chat_id = update.message.chat_id
     else:
@@ -320,10 +320,10 @@ def handle_quotes(bot, update, args=list(), user_data=None):
 
     update.message.reply_text(response)
 
-handler_quotes = CommandHandler(
-    'quotes', handle_quotes, filters=Filters.group, pass_args=True)
-_handler_quotes_dm = CommandHandler(
-    'quotes', handle_quotes, pass_args=True, **dm_kwargs)
+handler_count = CommandHandler(
+    'count', handle_count, filters=Filters.group, pass_args=True)
+_handler_count_dm = CommandHandler(
+    'count', handle_count, pass_args=True, **dm_kwargs)
 
 
 def handle_random(bot, update, user_data=None):
