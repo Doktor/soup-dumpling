@@ -185,21 +185,31 @@ class QuoteDatabase:
             select = """SELECT COUNT(*) FROM quote
                 WHERE quote.chat_id = ?"""
             self.c.execute(select, (chat_id,))
+            return self.c.fetchone()[0]
         else:
-            select = """SELECT COUNT(DISTINCT quote.id),
+            template = """SELECT COUNT(DISTINCT quote.id),
                 user.first_name ||
                     COALESCE(' ' || user.last_name, '') AS full_name
                 FROM quote INNER JOIN user
                 ON quote.sent_by = user.id
                 AND quote.chat_id = ?
-                AND (quote.content LIKE ?
-                    OR full_name LIKE ?
-                    OR user.username LIKE ?)"""
-            search = '%' + search + '%'
-            self.c.execute(select,
-                (chat_id, search, search, search))
+                AND {cond};"""
 
-        return self.c.fetchone()[0]
+            # The number of quotes containing the search term
+            select = template.format(cond="quote.content LIKE ?")
+            self.c.execute(select, (chat_id, '%' + search + '%'))
+
+            content = self.c.fetchone()[0]
+
+            # The number of quotes by this author
+            select = template.format(
+                cond="(full_name LIKE ? OR user.username LIKE ?)")
+            search = '%' + search + '%'
+            self.c.execute(select, (chat_id, search, search))
+
+            author = self.c.fetchone()[0]
+
+            return content, author
 
     def get_first_quote(self, chat_id):
         """Returns the first quote added in the given chat."""

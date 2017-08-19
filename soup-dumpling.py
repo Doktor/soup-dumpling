@@ -314,9 +314,11 @@ def handle_count(bot, update, args=list(), user_data=None):
         count = database.get_quote_count(chat_id)
         response = "{0} quotes in this chat".format(count)
     else:
-        count = database.get_quote_count(chat_id, search=args)
-        response = ('{0} quotes in this chat '
-            'for search term "{1}"').format(count, args)
+        content, author = database.get_quote_count(chat_id, search=args)
+        response = (
+            '{0} quotes in this chat for search term "{1}"\n'
+            '{2} content matches, {3} author matches'
+        ).format(content + author, args, content, author)
 
     update.message.reply_text(response)
 
