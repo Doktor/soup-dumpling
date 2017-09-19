@@ -196,7 +196,13 @@ def handle_addquote(bot, update):
     assert quote is not None
 
     # Only text messages can be added as quotes
-    if quote.text is None:
+    if (quote.photo is not None or quote.video is not None) and quote.caption:
+        text = quote.caption
+        text_html = text
+    elif quote.text is not None:
+        text = quote.text
+        text_html = quote.text_html
+    else:
         return
 
     chat_id = message.chat.id
@@ -228,7 +234,7 @@ def handle_addquote(bot, update):
 
     result = database.add_quote(
         chat_id, message_id, is_forward,
-        sent_at, sent_by.id, quote.text, quote.text_html, quoted_by.id)
+        sent_at, sent_by.id, text, text_html, quoted_by.id)
 
     if result == QuoteDatabase.QUOTE_ADDED:
         response = "quote added"
