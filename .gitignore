@@ -12,3 +12,6 @@ tokens/
 .idea/
 *.log
 *.out
+
+# macOS files
+.DS_Store/
