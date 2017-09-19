@@ -8,6 +8,7 @@
 # API tokens
 tokens/
 
-# Utilities
-activate.bat
-sqlite3.exe
+# Other files
+.idea/
+*.log
+*.out
