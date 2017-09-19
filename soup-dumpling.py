@@ -14,7 +14,7 @@ from database import QuoteDatabase
 logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     format="%(asctime)s | %(levelname)s @ %(name)s: %(message)s",
-    level=logging.DEBUG
+    level=logging.INFO
 )
 
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
