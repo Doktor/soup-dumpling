@@ -1,9 +1,8 @@
 from subprocess import check_output
-
 from telegram.ext import CommandHandler, Filters, MessageHandler
 
 from classes import User, Chat
-from main import VERSION, username, database
+from main import database, username, VERSION
 
 
 REPOSITORY_NAME = "Doktor/soup-dumpling"
@@ -50,17 +49,16 @@ handler_about = CommandHandler('about', handle_about)
 
 
 with open('help.txt', 'r', encoding='utf8') as f:
-    help_text = f.read().strip()
-
-
-def handle_help(bot, update):
+    raw = f.read().strip()
     kwargs = {
         'version': '.'.join((str(n) for n in VERSION)),
         'readme': REPOSITORY_URL + "/blob/master/README.md"
     }
-    response = help_text.format(**kwargs)
+    help_text = raw.format(**kwargs)
 
-    update.message.reply_text(response,
+
+def handle_help(bot, update):
+    update.message.reply_text(help_text,
         disable_web_page_preview=True, quote=False, parse_mode='HTML')
 
 
@@ -106,4 +104,5 @@ def handle_database(bot, update):
         database.add_membership(user.id, chat.id)
 
 
-handler_database = MessageHandler(Filters.text, handle_database)
+handler_database = MessageHandler(
+    Filters.text | Filters.command, handle_database)

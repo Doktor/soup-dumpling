@@ -1,5 +1,4 @@
 from datetime import datetime
-
 from telegram.ext import CommandHandler, Filters
 
 from handlers.quotes import dm_kwargs
@@ -15,8 +14,7 @@ def handle_most_quoted(bot, update, user_data=None):
     total_count = database.get_quote_count(chat_id)
     most_quoted = database.get_most_quoted(chat_id, limit=15)
 
-    response = []
-    response.append("<b>Users with the most quotes</b>")
+    response = ["<b>Users with the most quotes</b>"]
     response.extend(format_users(most_quoted, total_count))
 
     update.message.reply_text('\n'.join(response), parse_mode='HTML')
@@ -37,8 +35,7 @@ def handle_most_added(bot, update, user_data=None):
     total_count = database.get_quote_count(chat_id)
     most_added = database.get_most_quotes_added(chat_id, limit=15)
 
-    response = []
-    response.append("<b>Users who add the most quotes</b>")
+    response = ["<b>Users who add the most quotes</b>"]
     response.extend(format_users(most_added, total_count))
 
     update.message.reply_text('\n'.join(response), parse_mode='HTML')

@@ -1,5 +1,4 @@
 from html import escape
-
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (ConversationHandler, CommandHandler, Filters,
                           MessageHandler)

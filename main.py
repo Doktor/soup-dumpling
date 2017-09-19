@@ -26,13 +26,12 @@ TRUNCATE_ARGS_LENGTH = 100
 SELECT_CHAT = 1
 SELECTED_CHAT = 2
 
-database = QuoteDatabase()
-
-with open('tokens/soup.txt', 'r') as f:
-    token = f.read().strip()
-
+# The bot's Telegram username
 with open('tokens/username.txt', 'r') as f:
     username = f.read().strip()
+
+# Global database object
+database = QuoteDatabase()
 
 
 class QuoteBot:
@@ -48,14 +47,14 @@ class QuoteBot:
         self.updater.idle()
 
 
-# Helper functions
-
 def chunks(l, size):
+    """Yields chunks of items from a list."""
     for i in range(0, len(l), size):
         yield l[i:i + size]
 
 
 def format_quote(quote, user):
+    """Creates the Telegram message for a quote."""
     text = quote.content_html
     date = datetime.fromtimestamp(quote.sent_at).strftime(TIME_FORMAT)
 
@@ -71,6 +70,7 @@ def format_quote(quote, user):
 
 
 def format_users(users, total_count):
+    """Creates the Telegram message with a list of users."""
     ret = []
     for count, first, last in users:
         name = "{} {}".format(first, last or '').rstrip()
@@ -80,10 +80,9 @@ def format_users(users, total_count):
 
 
 def main():
-    namespace = globals()
+    ns = globals()
 
-    dm_handlers = [v for k, v in namespace.items() if
-                   k.startswith('dm_handler')]
+    dm_handlers = [v for k, v in ns.items() if k.startswith('dm_handler')]
 
     handler_dm = ConversationHandler(
         entry_points=start_handlers,
@@ -95,8 +94,11 @@ def main():
         allow_reentry=True
     )
 
-    handlers = [v for k, v in namespace.items() if k.startswith('handler')]
+    handlers = [v for k, v in ns.items() if k.startswith('handler')]
     handlers += [handler_dm]
+
+    with open('tokens/soup.txt', 'r') as f:
+        token = f.read().strip()
 
     quote = QuoteBot(token, handlers)
     quote.run()

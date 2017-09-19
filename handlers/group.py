@@ -2,7 +2,7 @@ from telegram.ext import CommandHandler, Filters
 
 from classes import User
 from database import QuoteDatabase
-from main import username, database
+from main import database, username
 
 
 def handle_addquote(bot, update):
