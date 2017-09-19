@@ -90,7 +90,7 @@ def handle_select_chat(bot, update, user_data):
 
 
 dm_only_handler_select = MessageHandler(
-    Filters.text, handle_select_chat, pass_user_data=True)
+    Filters.text | Filters.command, handle_select_chat, pass_user_data=True)
 
 
 def handle_which(bot, update, user_data):
