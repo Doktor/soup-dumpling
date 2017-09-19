@@ -1,6 +1,4 @@
-import json
 import logging
-import time
 from datetime import datetime
 from html import escape
 from subprocess import check_output
@@ -126,6 +124,7 @@ def handle_about(bot, update):
     update.message.reply_text(response,
         quote=False, disable_web_page_preview=True, parse_mode='HTML')
 
+
 handler_about = CommandHandler('about', handle_about)
 
 
@@ -142,6 +141,7 @@ def handle_help(bot, update):
 
     update.message.reply_text(response,
         disable_web_page_preview=True, quote=False, parse_mode='HTML')
+
 
 handler_help = CommandHandler('help', handle_help, filters=Filters.private)
 
@@ -169,6 +169,7 @@ def handle_help_group(bot, update):
     update.message.reply_text(response,
         disable_web_page_preview=True, quote=False, parse_mode='HTML')
 
+
 handler_help_group = CommandHandler(
     'help', handle_help_group, filters=Filters.group)
 
@@ -182,6 +183,7 @@ def handle_database(bot, update):
     if user.id != chat.id:
         database.add_or_update_chat(Chat.from_telegram(chat))
         database.add_membership(user.id, chat.id)
+
 
 handler_database = MessageHandler(Filters.text, handle_database)
 
@@ -243,6 +245,7 @@ def handle_addquote(bot, update):
 
     update.message.reply_text(response)
 
+
 handler_addquote = CommandHandler(
     'addquote', handle_addquote, filters=Filters.reply & Filters.group)
 
@@ -278,6 +281,7 @@ def handle_author(bot, update, args=list(), user_data=None):
 
     update.message.reply_text(response, parse_mode='HTML')
 
+
 handler_author = CommandHandler(
     'author', handle_author, filters=Filters.group, pass_args=True)
 _handler_author_dm = CommandHandler(
@@ -307,6 +311,7 @@ def handle_count(bot, update, args=list(), user_data=None):
 
     update.message.reply_text(response)
 
+
 handler_count = CommandHandler(
     'count', handle_count, filters=Filters.group, pass_args=True)
 _handler_count_dm = CommandHandler(
@@ -327,6 +332,7 @@ def handle_random(bot, update, user_data=None):
         response = format_quote(*result)
 
     update.message.reply_text(response, parse_mode='HTML')
+
 
 handler_random = CommandHandler(
     'random', handle_random, filters=Filters.group)
@@ -357,6 +363,7 @@ def handle_search(bot, update, args=list(), user_data=None):
         response = format_quote(*result)
         update.message.reply_text(response, parse_mode='HTML')
 
+
 handler_search = CommandHandler(
     'search', handle_search, filters=Filters.group, pass_args=True)
 _handler_search_dm = CommandHandler(
@@ -372,11 +379,11 @@ def handle_most_quoted(bot, update, user_data=None):
     total_count = database.get_quote_count(chat_id)
     most_quoted = database.get_most_quoted(chat_id, limit=15)
 
-    response = []
-    response.append("<b>Users with the most quotes</b>")
+    response = ["<b>Users with the most quotes</b>"]
     response.extend(format_users(most_quoted, total_count))
 
     update.message.reply_text('\n'.join(response), parse_mode='HTML')
+
 
 handler_most_quoted = CommandHandler(
     'most_quoted', handle_most_quoted, filters=Filters.group)
@@ -393,11 +400,11 @@ def handle_most_added(bot, update, user_data=None):
     total_count = database.get_quote_count(chat_id)
     most_added = database.get_most_quotes_added(chat_id, limit=15)
 
-    response = []
-    response.append("<b>Users who add the most quotes</b>")
+    response = ["<b>Users who add the most quotes</b>"]
     response.extend(format_users(most_added, total_count))
 
     update.message.reply_text('\n'.join(response), parse_mode='HTML')
+
 
 handler_most_added = CommandHandler(
     'most_added', handle_most_added, filters=Filters.group)
@@ -453,6 +460,7 @@ def handle_stats(bot, update, user_data=None):
 
     update.message.reply_text('\n'.join(response), parse_mode='HTML')
 
+
 handler_stats = CommandHandler(
     'stats', handle_stats, filters=Filters.group)
 _handler_stats_dm = CommandHandler(
@@ -466,6 +474,7 @@ def handle_cancel(bot, update, user_data):
     user_data['current'] = None
     update.message.reply_text('canceled')
     return ConversationHandler.END
+
 
 _handler_cancel = CommandHandler(
     'cancel', handle_cancel, **dm_kwargs)
@@ -510,6 +519,7 @@ def handle_start(bot, update, user_data):
 
     return SELECT_CHAT
 
+
 _handler_start = CommandHandler(
     'start', handle_start, **dm_kwargs)
 _handler_chats = CommandHandler(
@@ -543,6 +553,7 @@ def handle_select_chat(bot, update, user_data):
 
     return SELECTED_CHAT
 
+
 _handler_select_chat = MessageHandler(
     Filters.text, handle_select_chat, pass_user_data=True)
 
@@ -552,6 +563,7 @@ def handle_which(bot, update, user_data):
 
     response = 'searching quotes from "{0}"'.format(escape(chat.title))
     update.message.reply_text(response)
+
 
 _handler_which = CommandHandler(
     'which', handle_which, **dm_kwargs)
