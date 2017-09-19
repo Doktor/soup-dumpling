@@ -284,7 +284,7 @@ def handle_author(bot, update, args=list(), user_data=None):
 
 handler_author = CommandHandler(
     'author', handle_author, filters=Filters.group, pass_args=True)
-_handler_author_dm = CommandHandler(
+dm_handler_author = CommandHandler(
     'author', handle_author, pass_args=True, **dm_kwargs)
 
 
@@ -314,7 +314,7 @@ def handle_count(bot, update, args=list(), user_data=None):
 
 handler_count = CommandHandler(
     'count', handle_count, filters=Filters.group, pass_args=True)
-_handler_count_dm = CommandHandler(
+dm_handler_count = CommandHandler(
     'count', handle_count, pass_args=True, **dm_kwargs)
 
 
@@ -336,7 +336,7 @@ def handle_random(bot, update, user_data=None):
 
 handler_random = CommandHandler(
     'random', handle_random, filters=Filters.group)
-_handler_random_dm = CommandHandler(
+dm_handler_random = CommandHandler(
     'random', handle_random, **dm_kwargs)
 
 
@@ -366,7 +366,7 @@ def handle_search(bot, update, args=list(), user_data=None):
 
 handler_search = CommandHandler(
     'search', handle_search, filters=Filters.group, pass_args=True)
-_handler_search_dm = CommandHandler(
+dm_handler_search = CommandHandler(
     'search', handle_search, pass_args=True, **dm_kwargs)
 
 
@@ -387,7 +387,7 @@ def handle_most_quoted(bot, update, user_data=None):
 
 handler_most_quoted = CommandHandler(
     'most_quoted', handle_most_quoted, filters=Filters.group)
-_handler_most_quoted_dm = CommandHandler(
+dm_handler_most_quoted = CommandHandler(
     'most_quoted', handle_most_quoted, **dm_kwargs)
 
 
@@ -408,7 +408,7 @@ def handle_most_added(bot, update, user_data=None):
 
 handler_most_added = CommandHandler(
     'most_added', handle_most_added, filters=Filters.group)
-_handler_most_added_dm = CommandHandler(
+dm_handler_most_added = CommandHandler(
     'most_added', handle_most_added, **dm_kwargs)
 
 
@@ -463,7 +463,7 @@ def handle_stats(bot, update, user_data=None):
 
 handler_stats = CommandHandler(
     'stats', handle_stats, filters=Filters.group)
-_handler_stats_dm = CommandHandler(
+dm_handler_stats = CommandHandler(
     'stats', handle_stats, **dm_kwargs)
 
 
@@ -476,7 +476,7 @@ def handle_cancel(bot, update, user_data):
     return ConversationHandler.END
 
 
-_handler_cancel = CommandHandler(
+dm_only_handler_cancel = CommandHandler(
     'cancel', handle_cancel, **dm_kwargs)
 
 
@@ -525,7 +525,7 @@ _handler_start = CommandHandler(
 _handler_chats = CommandHandler(
     'chats', handle_start, **dm_kwargs)
 
-dm_start_handlers = [_handler_start, _handler_chats]
+start_handlers = [_handler_start, _handler_chats]
 
 
 def handle_select_chat(bot, update, user_data):
@@ -554,7 +554,7 @@ def handle_select_chat(bot, update, user_data):
     return SELECTED_CHAT
 
 
-_handler_select_chat = MessageHandler(
+dm_only_handler_select = MessageHandler(
     Filters.text, handle_select_chat, pass_user_data=True)
 
 
@@ -565,20 +565,21 @@ def handle_which(bot, update, user_data):
     update.message.reply_text(response)
 
 
-_handler_which = CommandHandler(
+dm_only_handler_which = CommandHandler(
     'which', handle_which, **dm_kwargs)
 
 
-dm_handlers = [v for k, v in globals().items() if
-    k.startswith('_handler') and k.endswith('_dm')]
+# Gather handlers
+
+dm_handlers = [v for k, v in globals().items() if k.startswith('dm_handler')]
 
 handler_dm = ConversationHandler(
-    entry_points=dm_start_handlers,
+    entry_points=start_handlers,
     states={
-        SELECT_CHAT: [_handler_select_chat],
-        SELECTED_CHAT: [_handler_which] + dm_handlers,
+        SELECT_CHAT: [dm_only_handler_select],
+        SELECTED_CHAT: [dm_only_handler_which] + dm_handlers,
     },
-    fallbacks=[_handler_cancel],
+    fallbacks=[dm_only_handler_cancel],
     allow_reentry=True
 )
 
