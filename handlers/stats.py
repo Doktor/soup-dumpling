@@ -6,6 +6,8 @@ from main import database, format_users, TIME_FORMAT
 
 
 def parse_limit(args, default=15):
+    """Parses the arguments as an integer, or return the default value
+    if it's not a valid integer or if the value isn't positive."""
     if args is None:
         return default
 

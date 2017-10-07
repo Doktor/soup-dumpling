@@ -1,3 +1,4 @@
+import shlex
 from subprocess import check_output
 from telegram.ext import CommandHandler, Filters, MessageHandler
 
@@ -16,11 +17,23 @@ DATE_ARGS = ['git', 'log', COMMIT_HASH,
     '-1', '--date=iso', r'--pretty=format:%cd']
 COMMIT_DATE = check_output(DATE_ARGS, encoding='utf8')[:19]
 
+# Commits that don't exist on the remote branch
+ORIGIN_DIFF = check_output(
+    shlex.split("git log origin/master..master --pretty=oneline"),
+    encoding='utf8')
+
+PUSHED = COMMIT_HASH not in ORIGIN_DIFF
+
 # The relative date is used for the 'about' command
 DATE_ARGS[4] = '--date=relative'
 
 
 def handle_about(bot, update):
+    if PUSHED:
+        commit = '<a href="{hash_url}">{hash}</a>'
+    else:
+        commit = '{hash}'
+
     info = {
         'version': '.'.join((str(n) for n in VERSION)),
         'updated': COMMIT_DATE,
@@ -36,7 +49,7 @@ def handle_about(bot, update):
         '<i>{updated} ({updated_rel})</i>',
         '',
         'Source code at <a href="{repo_url}">{repo_name}</a>',
-        'Running on commit <a href="{hash_url}">{hash}</a>',
+        'Running on commit ' + commit,
     ]
 
     response = '\n'.join(response).format(**info)
