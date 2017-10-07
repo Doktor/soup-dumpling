@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime
+from html import escape
 from telegram.ext import Updater
 
 from database import QuoteDatabase
