@@ -5,7 +5,11 @@ from database import QuoteDatabase
 from main import database, username
 
 
-def handle_addquote(bot, update):
+def handle_addqoute(bot, update):
+    return handle_addquote(bot, update, word='qoute')
+
+
+def handle_addquote(bot, update, word='quote'):
     message = update.message
     quote = update.message.reply_to_message
 
@@ -37,12 +41,12 @@ def handle_addquote(bot, update):
 
     # Bot messages can't be added as quotes
     if sent_by.username == username.lstrip('@'):
-        response = "can't quote bot messages"
+        response = f"can't {word} bot messages"
         return update.message.reply_text(response)
 
     # Users can't add their own messages as quotes
     if sent_by.id == quoted_by.id:
-        response = "can't quote own messages"
+        response = f"can't {word} own messages"
         return update.message.reply_text(response)
 
     database.add_or_update_user(User.from_telegram(sent_by))
@@ -53,12 +57,15 @@ def handle_addquote(bot, update):
         sent_at, sent_by.id, text, text_html, quoted_by.id)
 
     if result == QuoteDatabase.QUOTE_ADDED:
-        response = "quote added"
+        response = f"{word} added"
     elif result == QuoteDatabase.QUOTE_ALREADY_EXISTS:
-        response = "quote already exists"
+        response = f"{word} already exists"
 
     update.message.reply_text(response)
 
 
 handler_addquote = CommandHandler(
     'addquote', handle_addquote, filters=Filters.reply & Filters.group)
+
+handler_addqoute = CommandHandler(
+    'addqoute', handle_addqoute, filters=Filters.reply & Filters.group)
