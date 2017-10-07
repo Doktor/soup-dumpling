@@ -5,14 +5,28 @@ from handlers.quotes import dm_kwargs
 from main import database, format_users, TIME_FORMAT
 
 
-def handle_most_quoted(bot, update, user_data=None):
+def parse_limit(args, default=15):
+    if args is None:
+        return default
+
+    try:
+        limit = int(''.join(args))
+    except ValueError:
+        return default
+
+    return limit if limit > 0 else default
+
+
+def handle_most_quoted(bot, update, args=None, user_data=None):
     if user_data is None:
         chat_id = update.message.chat_id
     else:
         chat_id = user_data['current']
 
+    limit = parse_limit(args, default=15)
+
     total_count = database.get_quote_count(chat_id)
-    most_quoted = database.get_most_quoted(chat_id, limit=15)
+    most_quoted = database.get_most_quoted(chat_id, limit=limit)
 
     response = ["<b>Users with the most quotes</b>"]
     response.extend(format_users(most_quoted, total_count))
@@ -23,17 +37,19 @@ def handle_most_quoted(bot, update, user_data=None):
 handler_most_quoted = CommandHandler(
     'most_quoted', handle_most_quoted, filters=Filters.group)
 dm_handler_most_quoted = CommandHandler(
-    'most_quoted', handle_most_quoted, **dm_kwargs)
+    'most_quoted', handle_most_quoted, pass_args=True, **dm_kwargs)
 
 
-def handle_most_added(bot, update, user_data=None):
+def handle_most_added(bot, update, args=None, user_data=None):
     if user_data is None:
         chat_id = update.message.chat_id
     else:
         chat_id = user_data['current']
 
+    limit = parse_limit(args, default=15)
+
     total_count = database.get_quote_count(chat_id)
-    most_added = database.get_most_quotes_added(chat_id, limit=15)
+    most_added = database.get_most_quotes_added(chat_id, limit=limit)
 
     response = ["<b>Users who add the most quotes</b>"]
     response.extend(format_users(most_added, total_count))
@@ -44,14 +60,16 @@ def handle_most_added(bot, update, user_data=None):
 handler_most_added = CommandHandler(
     'most_added', handle_most_added, filters=Filters.group)
 dm_handler_most_added = CommandHandler(
-    'most_added', handle_most_added, **dm_kwargs)
+    'most_added', handle_most_added, pass_args=True, **dm_kwargs)
 
 
-def handle_stats(bot, update, user_data=None):
+def handle_stats(bot, update, args=None, user_data=None):
     if user_data is None:
         chat_id = update.message.chat_id
     else:
         chat_id = user_data['current']
+
+    limit = parse_limit(args, default=5)
 
     response = list()
 
@@ -82,13 +100,13 @@ def handle_stats(bot, update, user_data=None):
     response.append("")
 
     # Users
-    most_quoted = database.get_most_quoted(chat_id, limit=5)
+    most_quoted = database.get_most_quoted(chat_id, limit=limit)
 
     response.append("<b>Users with the most quotes</b>")
     response.extend(format_users(most_quoted, total_count))
     response.append("")
 
-    added_most = database.get_most_quotes_added(chat_id, limit=5)
+    added_most = database.get_most_quotes_added(chat_id, limit=limit)
 
     response.append("<b>Users who add the most quotes</b>")
     response.extend(format_users(added_most, total_count))
@@ -96,5 +114,7 @@ def handle_stats(bot, update, user_data=None):
     update.message.reply_text('\n'.join(response), parse_mode='HTML')
 
 
-handler_stats = CommandHandler('stats', handle_stats, filters=Filters.group)
-dm_handler_stats = CommandHandler('stats', handle_stats, **dm_kwargs)
+handler_stats = CommandHandler(
+    'stats', handle_stats, filters=Filters.group)
+dm_handler_stats = CommandHandler(
+    'stats', handle_stats, pass_args=True, **dm_kwargs)
