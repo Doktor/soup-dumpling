@@ -38,6 +38,7 @@ CREATE TABLE IF NOT EXISTS quote (
     quoted_by INTEGER REFERENCES user (id)
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
+    deleted INTEGER DEFAULT 0 NOT NULL,
 
     UNIQUE(chat_id, message_id) ON CONFLICT ROLLBACK,
     UNIQUE(sent_at, sent_by, content_html) ON CONFLICT ROLLBACK
@@ -48,4 +49,13 @@ CREATE TABLE IF NOT EXISTS quote_message (
     chat_id INTEGER NOT NULL,
     message_id INTEGER NOT NULL,
     quote_id INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS vote (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    quote_id INTEGER NOT NULL,
+    direction INTEGER NOT NULL,
+
+    UNIQUE(user_id, quote_id) ON CONFLICT ROLLBACK
 );

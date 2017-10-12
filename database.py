@@ -9,6 +9,13 @@ class QuoteDatabase:
     QUOTE_ADDED = 1
     QUOTE_ALREADY_EXISTS = 2
 
+    # Status codes: voting
+    VOTE_ADDED = 11
+    ALREADY_VOTED = 12
+    QUOTE_DELETED = 13
+
+    SCORE_TO_DELETE = -4
+
     def __init__(self, filename='data.db'):
         self.filename = filename
 
@@ -153,6 +160,7 @@ class QuoteDatabase:
             FROM quote INNER JOIN user
             ON quote.sent_by = user.id
             AND quote.chat_id = ?
+            AND deleted = 0
             GROUP BY quote.sent_by
             ORDER BY count DESC
             LIMIT ?"""
@@ -168,6 +176,7 @@ class QuoteDatabase:
             FROM quote INNER JOIN user
             ON quote.quoted_by = user.id
             AND quote.chat_id = ?
+            AND deleted = 0
             GROUP BY quote.quoted_by
             ORDER BY count DESC
             LIMIT ?"""
@@ -223,6 +232,7 @@ class QuoteDatabase:
                 FROM quote INNER JOIN user
                 ON quote.sent_by = user.id
                 AND quote.chat_id = ?
+                AND deleted = 0
                 AND {cond};"""
 
             # The number of quotes containing the search term
@@ -258,6 +268,7 @@ class QuoteDatabase:
         select = """SELECT id, chat_id, message_id, sent_at, sent_by,
             content_html FROM quote
             WHERE chat_id = ?
+            AND deleted = 0
             ORDER BY sent_at {}
             LIMIT 1""".format(direction)
         self.c.execute(select, (chat_id,))
@@ -290,6 +301,7 @@ class QuoteDatabase:
                 ON quote.sent_by = user.id
                 AND quote.chat_id = ?
                 AND (full_name LIKE ? OR username LIKE ?)
+                AND deleted = 0
                 ORDER BY RANDOM() LIMIT 1;"""
             self.c.execute(select,
                 (chat_id, '%' + name + '%', '%' + name + '%'))
@@ -313,6 +325,7 @@ class QuoteDatabase:
         select = """SELECT id, chat_id, message_id, sent_at, sent_by,
             content_html FROM quote
             WHERE content LIKE ?
+            AND deleted = 0
             ORDER BY RANDOM() LIMIT 1;"""
         self.c.execute(select, ('%' + search_terms + '%',))
 
@@ -353,6 +366,14 @@ class QuoteDatabase:
         quote = self.get_quote_by_id(self.c.lastrowid)
         return quote, self.QUOTE_ADDED
 
+    def delete_quote(self, quote_id):
+        """Marks a quote as deleted."""
+        self.connect()
+
+        update = "UPDATE quote SET deleted = 1 WHERE id = ?"
+        self.c.execute(update, (quote_id,))
+        self.db.commit()
+
     # Quote message methods
 
     def add_message(self, chat_id, message_id, quote_id):
@@ -363,3 +384,74 @@ class QuoteDatabase:
             VALUES (?, ?, ?);"""
         self.c.execute(insert, (chat_id, message_id, quote_id))
         self.db.commit()
+
+    def get_quote_id_from_message(self, chat_id, message_id):
+        """Returns the quote ID corresponding to the given quote message."""
+        self.connect()
+
+        select = """SELECT quote_id FROM quote_message
+            WHERE chat_id = ? AND message_id = ?;"""
+        self.c.execute(select, (chat_id, message_id))
+
+        message = self.c.fetchone()
+
+        if message:
+            return message[0]
+
+        return None
+
+    # Vote methods
+
+    def add_vote(self, user_id, quote_id, direction):
+        self.connect()
+
+        select = """SELECT direction FROM vote
+            WHERE user_id = ? AND quote_id = ?;"""
+        self.c.execute(select, (user_id, quote_id))
+
+        vote = self.c.fetchone()
+
+        if vote is None:
+            pass
+        elif vote[0] == direction:
+            return self.ALREADY_VOTED
+
+        insert = """INSERT OR REPLACE INTO vote (user_id, quote_id, direction)
+            VALUES (?, ?, ?);"""
+        self.c.execute(insert, (user_id, quote_id, direction))
+        self.db.commit()
+
+        _, score, _ = self.get_votes_by_id(quote_id)
+
+        if score <= self.SCORE_TO_DELETE:
+            self.delete_quote(quote_id)
+            return self.QUOTE_DELETED
+        else:
+            return self.VOTE_ADDED
+
+    def get_votes(self, chat_id, message_id):
+        """Returns the number of upvotes / downvotes and score for a quote."""
+        self.connect()
+
+        quote_id = self.get_quote_id_from_message(chat_id, message_id)
+
+        return self.get_votes_by_id(quote_id)
+
+    def get_votes_by_id(self, quote_id):
+        """Returns the number of upvotes / downvotes and score for a quote."""
+        select = "SELECT direction FROM vote WHERE quote_id = ?;"
+        self.c.execute(select, (quote_id,))
+
+        up, score, down = 0, 0, 0
+
+        for vote in self.c:
+            vote = vote[0]
+
+            if vote == 1:
+                up += 1
+            else:
+                down += 1
+
+            score += vote
+
+        return up, score, down
