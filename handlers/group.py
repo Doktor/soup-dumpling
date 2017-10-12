@@ -52,16 +52,18 @@ def handle_addquote(bot, update, word='quote'):
     database.add_or_update_user(User.from_telegram(sent_by))
     database.add_or_update_user(User.from_telegram(quoted_by))
 
-    result = database.add_quote(
+    result, status = database.add_quote(
         chat_id, message_id, is_forward,
         sent_at, sent_by.id, text, text_html, quoted_by.id)
 
-    if result == QuoteDatabase.QUOTE_ADDED:
+    if status == QuoteDatabase.QUOTE_ADDED:
         response = f"{word} added"
-    elif result == QuoteDatabase.QUOTE_ALREADY_EXISTS:
+    elif status == QuoteDatabase.QUOTE_ALREADY_EXISTS:
         response = f"{word} already exists"
 
-    update.message.reply_text(response)
+    message = update.message.reply_text(response)
+
+    database.add_message(message.chat_id, message.message_id, result.quote.id)
 
 
 handler_addquote = CommandHandler(

@@ -28,10 +28,12 @@ def handle_author(bot, update, args=list(), user_data=None):
 
     if result is None:
         response = 'no quotes found by author "{}"'.format(escape(args))
+        update.message.reply_text(response)
     else:
         response = format_quote(*result)
+        message = update.message.reply_text(response, parse_mode='HTML')
 
-    update.message.reply_text(response, parse_mode='HTML')
+        database.add_message(chat_id, message.message_id, result.quote.id)
 
 
 handler_author = CommandHandler(
@@ -80,10 +82,12 @@ def handle_random(bot, update, user_data=None):
 
     if result is None:
         response = "no quotes in database"
+        update.message.reply_text(response)
     else:
         response = format_quote(*result)
+        message = update.message.reply_text(response, parse_mode='HTML')
 
-    update.message.reply_text(response, parse_mode='HTML')
+        database.add_message(chat_id, message.message_id, result.quote.id)
 
 
 handler_random = CommandHandler('random', handle_random, filters=Filters.group)
@@ -111,7 +115,9 @@ def handle_search(bot, update, args=list(), user_data=None):
         update.message.reply_text(response)
     else:
         response = format_quote(*result)
-        update.message.reply_text(response, parse_mode='HTML')
+        message = update.message.reply_text(response, parse_mode='HTML')
+
+        database.add_message(chat_id, message.message_id, result.quote.id)
 
 
 handler_search = CommandHandler(

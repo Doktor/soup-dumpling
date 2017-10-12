@@ -177,6 +177,36 @@ class QuoteDatabase:
 
     # Quote methods
 
+    def get_quote_by_id(self, id_):
+        self.connect()
+
+        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
+            content_html FROM quote WHERE id = ?;"""
+        self.c.execute(select, (id_,))
+
+        row = self.c.fetchone()
+        if row is None:
+            return None
+
+        quote = Quote.from_database(row)
+        user = self.get_user_by_id(quote.sent_by)
+        return Result(quote, user)
+
+    def get_quote_by_ids(self, chat_id, message_id):
+        self.connect()
+
+        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
+            content_html FROM quote WHERE chat_id = ? AND message_id = ?;"""
+        self.c.execute(select, (chat_id, message_id,))
+
+        row = self.c.fetchone()
+        if row is None:
+            return None
+
+        quote = Quote.from_database(row)
+        user = self.get_user_by_id(quote.sent_by)
+        return Result(quote, user)
+
     def get_quote_count(self, chat_id, search=None):
         """Returns the number of quotes added in the given chat."""
         self.connect()
@@ -307,7 +337,8 @@ class QuoteDatabase:
         if self.c.fetchone() is None:
             pass
         else:
-            return self.QUOTE_ALREADY_EXISTS
+            quote = self.get_quote_by_ids(chat_id, message_id)
+            return quote, self.QUOTE_ALREADY_EXISTS
 
         insert = """INSERT INTO quote
             (chat_id, message_id, is_forward,
@@ -319,4 +350,16 @@ class QuoteDatabase:
                 sent_at, sent_by, content, content_html, quoted_by))
         self.db.commit()
 
-        return self.QUOTE_ADDED
+        quote = self.get_quote_by_id(self.c.lastrowid)
+        return quote, self.QUOTE_ADDED
+
+    # Quote message methods
+
+    def add_message(self, chat_id, message_id, quote_id):
+        """Adds a quote message, i.e. a bot message that contains a quote."""
+        self.connect()
+
+        insert = """INSERT INTO quote_message (chat_id, message_id, quote_id)
+            VALUES (?, ?, ?);"""
+        self.c.execute(insert, (chat_id, message_id, quote_id))
+        self.db.commit()
