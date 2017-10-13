@@ -402,7 +402,7 @@ class QuoteDatabase:
 
     # Vote methods
 
-    def add_vote(self, user_id, quote_id, direction):
+    def get_user_vote(self, user_id, quote_id):
         self.connect()
 
         select = """SELECT direction FROM vote
@@ -410,10 +410,16 @@ class QuoteDatabase:
         self.c.execute(select, (user_id, quote_id))
 
         vote = self.c.fetchone()
+        return 0 if vote is None else vote[0]
 
-        if vote is None:
+    def add_vote(self, user_id, quote_id, direction):
+        self.connect()
+
+        vote = self.get_user_vote(user_id, quote_id)
+
+        if vote == 0:
             pass
-        elif vote[0] == direction:
+        elif vote == direction:
             return self.ALREADY_VOTED
 
         insert = """INSERT OR REPLACE INTO vote (user_id, quote_id, direction)
@@ -449,9 +455,9 @@ class QuoteDatabase:
 
             if vote == 1:
                 up += 1
-            else:
+                score += 1
+            elif vote == -1:
                 down += 1
-
-            score += vote
+                score -= 1
 
         return up, score, down
