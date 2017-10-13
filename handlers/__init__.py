@@ -3,4 +3,3 @@ from .group import *
 from .meta import *
 from .quotes import *
 from .stats import *
-from .vote import *

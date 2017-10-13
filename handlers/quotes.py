@@ -1,6 +1,6 @@
 from html import escape
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Filters, CommandHandler
+from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
 
 from main import database, TRUNCATE_ARGS_LENGTH, format_quote
 
@@ -38,6 +38,55 @@ def create_vote_buttons(user_id, quote_id):
     keyboard = InlineKeyboardMarkup([options])
 
     return keyboard
+
+
+def handle_vote(bot, update, user_data):
+    query = update.callback_query
+
+    user = query.from_user
+    quote_message = query.message
+    direction = int(query.data)
+
+    if direction == 0:
+        return query.answer('')
+
+    current_chat_id = query.message.chat_id
+
+    # Direct message
+    if 'current' in user_data:
+        quote_chat_id = user_data['current']
+    else:
+        quote_chat_id = current_chat_id
+
+    quote_id = database.get_quote_id_from_message(
+        quote_chat_id, quote_message.message_id)
+
+    if quote_id is None:
+        return query.answer('')
+
+    status = database.add_vote(user.id, quote_id, direction)
+
+    if status == database.VOTE_ADDED:
+        response = "vote added!"
+    elif status == database.ALREADY_VOTED:
+        database.add_vote(user.id, quote_id, 0)
+        response = "vote removed!"
+    elif status == database.QUOTE_DELETED:
+        response = "vote added and quote deleted!"
+        query.answer(response)
+        return quote_message.delete()
+
+    query.answer(response)
+
+    keyboard = create_vote_buttons(user.id, quote_id)
+
+    bot.edit_message_reply_markup(
+        chat_id=current_chat_id, message_id=quote_message.message_id,
+        reply_markup=keyboard)
+
+
+handler_vote = CallbackQueryHandler(handle_vote, pass_user_data=True)
+
 
 
 def handle_author(bot, update, args=list(), user_data=None):
