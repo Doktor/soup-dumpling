@@ -15,20 +15,22 @@ UP_ARROW = '\u2B06'
 DOWN_ARROW = '\u2B07'
 
 
-def create_vote_buttons(user_id, quote_id):
+def create_vote_buttons(user_id, quote_id, direct=False):
     upvotes, score, downvotes = database.get_votes_by_id(quote_id)
-    vote = database.get_user_vote(user_id, quote_id)
 
     text_up = f'{UP_ARROW} ({upvotes})'
     text_zero = f'score {score}'
     text_down = f'{DOWN_ARROW} ({downvotes})'
 
-    if vote == 0:
-        pass
-    elif vote == 1:
-        text_up = CHECK_MARK + text_up
-    elif vote == -1:
-        text_down = CHECK_MARK + text_down
+    if direct:
+        vote = database.get_user_vote(user_id, quote_id)
+
+        if vote == 0:
+            pass
+        elif vote == 1:
+            text_up = CHECK_MARK + text_up
+        elif vote == -1:
+            text_down = CHECK_MARK + text_down
 
     up = InlineKeyboardButton(text_up, callback_data='1')
     zero = InlineKeyboardButton(text_zero, callback_data='0')
@@ -52,8 +54,11 @@ def handle_vote(bot, update, user_data):
 
     current_chat_id = query.message.chat_id
 
-    # Direct message
-    if 'current' in user_data:
+    # Check if the query originated from a direct message:
+    # callback query handlers don't accept filters
+    direct = current_chat_id == user.id
+
+    if direct:
         quote_chat_id = user_data['current']
     else:
         quote_chat_id = current_chat_id
@@ -78,7 +83,7 @@ def handle_vote(bot, update, user_data):
 
     query.answer(response)
 
-    keyboard = create_vote_buttons(user.id, quote_id)
+    keyboard = create_vote_buttons(user.id, quote_id, direct=direct)
 
     bot.edit_message_reply_markup(
         chat_id=current_chat_id, message_id=quote_message.message_id,
@@ -110,7 +115,8 @@ def handle_author(bot, update, args=list(), user_data=None):
         response = 'no quotes found by author "{}"'.format(escape(args))
         update.message.reply_text(response)
     else:
-        votes = create_vote_buttons(user.id, result.quote.id)
+        votes = create_vote_buttons(
+            user.id, result.quote.id, direct=user_data is not None)
 
         response = format_quote(*result)
         message = update.message.reply_text(
@@ -164,7 +170,8 @@ def handle_random(bot, update, user_data=None):
     user = update.message.from_user
     result = database.get_random_quote(chat_id)
 
-    votes = create_vote_buttons(user.id, result.quote.id)
+    votes = create_vote_buttons(
+        user.id, result.quote.id, direct=user_data is not None)
 
     if result is None:
         response = "no quotes in database"
@@ -202,7 +209,8 @@ def handle_search(bot, update, args=list(), user_data=None):
         response = 'no quotes found for search terms "{}"'.format(args)
         update.message.reply_text(response)
     else:
-        votes = create_vote_buttons(user.id, result.quote.id)
+        votes = create_vote_buttons(
+            user.id, result.quote.id, direct=user_data is not None)
 
         response = format_quote(*result)
         message = update.message.reply_text(
