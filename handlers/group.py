@@ -55,10 +55,13 @@ def handle_addquote(bot, update, word='quote'):
         chat_id, message_id, is_forward,
         sent_at, sent_by.id, text, text_html, quoted_by.id)
 
-    if status == QuoteDatabase.QUOTE_ADDED:
+    if status == database.QUOTE_ADDED:
         response = f"{word} added"
-    elif status == QuoteDatabase.QUOTE_ALREADY_EXISTS:
+    elif status == database.QUOTE_ALREADY_EXISTS:
         response = f"{word} already exists"
+    elif status == database.QUOTE_PREVIOUSLY_DELETED:
+        response = f"{word} was previously deleted"
+        return update.message.reply_text(response)
 
     message = update.message.reply_text(response)
 

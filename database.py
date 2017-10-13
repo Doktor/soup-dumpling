@@ -8,6 +8,7 @@ class QuoteDatabase:
     # Status codes for quotes
     QUOTE_ADDED = 1
     QUOTE_ALREADY_EXISTS = 2
+    QUOTE_PREVIOUSLY_DELETED = 3
 
     # Status codes: voting
     VOTE_ADDED = 11
@@ -350,15 +351,22 @@ class QuoteDatabase:
         """Inserts a quote."""
         self.connect()
 
-        select = """SELECT * FROM quote
+        select = """SELECT id, deleted FROM quote
             WHERE sent_at = ? AND sent_by = ? AND content_html = ?;"""
         self.c.execute(
             select, (sent_at, sent_by, content_html))
 
-        if self.c.fetchone() is None:
+        result = self.c.fetchone()
+
+        if result is None:
             pass
         else:
-            quote = self.get_quote_by_ids(chat_id, message_id)
+            quote_id, deleted = result
+
+            if deleted:
+                return None, self.QUOTE_PREVIOUSLY_DELETED
+
+            quote = self.get_quote_by_id(quote_id)
             return quote, self.QUOTE_ALREADY_EXISTS
 
         insert = """INSERT INTO quote
