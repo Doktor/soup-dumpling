@@ -14,7 +14,7 @@ class QuoteDatabase:
     ALREADY_VOTED = 12
     QUOTE_DELETED = 13
 
-    SCORE_TO_DELETE = -4
+    SCORE_TO_DELETE = -5
 
     def __init__(self, filename='data.db'):
         self.filename = filename
