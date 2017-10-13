@@ -5,8 +5,7 @@ from database import QuoteDatabase
 from main import database, username
 
 
-def handle_addqoute(bot, update):
-    return handle_addquote(bot, update, word='qoute')
+LOUDLY_CRYING_FACE = L = '\U0001f62d'
 
 
 def handle_addquote(bot, update, word='quote'):
@@ -66,8 +65,19 @@ def handle_addquote(bot, update, word='quote'):
     database.add_message(message.chat_id, message.message_id, result.quote.id)
 
 
+def handle_addqoute(bot, update):
+    return handle_addquote(bot, update, word='qoute')
+
+
+def handle_sadquote(bot, update):
+    return handle_addquote(bot, update, word=f'{L} quote {L}')
+
+
 handler_addquote = CommandHandler(
     'addquote', handle_addquote, filters=Filters.reply & Filters.group)
 
 handler_addqoute = CommandHandler(
     'addqoute', handle_addqoute, filters=Filters.reply & Filters.group)
+
+handler_sadquote = CommandHandler(
+    'sadquote', handle_sadquote, filters=Filters.reply & Filters.group)
