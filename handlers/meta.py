@@ -119,3 +119,14 @@ def handle_database(bot, update):
 
 handler_database = MessageHandler(
     Filters.text | Filters.command, handle_database)
+
+
+def handle_user_left(bot, update):
+    user_id = update.message.left_chat_member.id
+    chat_id = update.message.chat_id
+
+    database.remove_membership(user_id, chat_id)
+
+
+handler_user_left = MessageHandler(
+    Filters.status_update.left_chat_member, handle_user_left)

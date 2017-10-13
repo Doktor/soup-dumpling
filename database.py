@@ -82,7 +82,7 @@ class QuoteDatabase:
 
         self.db.commit()
 
-    def get_chats(self, user_id):
+    def get_user_chats(self, user_id):
         """Returns a list of chats that a user is a member of."""
         self.connect()
 
@@ -148,6 +148,14 @@ class QuoteDatabase:
             pass
         else:
             self.db.commit()
+
+    def remove_membership(self, user_id, chat_id):
+        """Removes a membership listing, when a user leaves or is removed from
+        a group."""
+        self.connect()
+
+        delete = "DELETE FROM membership WHERE user_id = ? AND chat_id = ?;"
+        self.c.execute(delete, (user_id, chat_id))
 
     # User ranking methods
 

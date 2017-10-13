@@ -19,7 +19,7 @@ dm_only_handler_cancel = CommandHandler('cancel', handle_cancel, **dm_kwargs)
 def handle_start(bot, update, user_data):
     user_id = update.message.from_user.id
 
-    chats = database.get_chats(user_id)
+    chats = database.get_user_chats(user_id)
 
     if not chats:
         response = "<b>Chat selection</b>\nno chats found"
