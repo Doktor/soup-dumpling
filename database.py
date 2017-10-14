@@ -416,6 +416,18 @@ class QuoteDatabase:
 
         return None
 
+    def get_quote_messages(self, quote_id):
+        """Returns a list of all messages that refer to the given quote."""
+        self.connect()
+
+        select = """SELECT chat_id, message_id FROM quote_message
+            WHERE quote_id = ?;"""
+        self.c.execute(select, (quote_id,))
+
+        results = self.c.fetchall()
+
+        return [] if results is None else results
+
     # Vote methods
 
     def get_user_vote(self, user_id, quote_id):

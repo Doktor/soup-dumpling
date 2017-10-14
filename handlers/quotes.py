@@ -1,5 +1,5 @@
 from html import escape
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, TelegramError
 from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
 
 from main import database, TRUNCATE_ARGS_LENGTH, format_quote
@@ -79,7 +79,17 @@ def handle_vote(bot, update, user_data):
     elif status == database.QUOTE_DELETED:
         response = "vote added and quote deleted!"
         query.answer(response)
-        return quote_message.delete()
+
+        for chat_id, message_id in database.get_quote_messages(quote_id):
+            try:
+                bot.edit_message_text(
+                    chat_id=chat_id, message_id=message_id,
+                    text="[quote was deleted]", reply_markup=[])
+            except TelegramError as e:
+                # The message is over 48 hours old and can't be edited
+                pass
+
+        return
 
     query.answer(response)
 
