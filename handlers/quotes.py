@@ -79,7 +79,10 @@ def handle_vote(bot, update, user_data):
     status = database.add_vote(user.id, quote_id, data)
 
     if status == database.VOTE_ADDED:
-        response = "vote added!"
+        if data == 1:
+            response = "upvoted!"
+        elif data == -1:
+            response = "downvoted!"
     elif status == database.ALREADY_VOTED:
         database.add_vote(user.id, quote_id, 0)
         response = "vote removed!"
