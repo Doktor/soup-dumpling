@@ -47,10 +47,7 @@ def handle_vote(bot, update, user_data):
 
     user = query.from_user
     quote_message = query.message
-    direction = int(query.data)
-
-    if direction == 0:
-        return query.answer('')
+    data = int(query.data)
 
     current_chat_id = query.message.chat_id
 
@@ -69,7 +66,17 @@ def handle_vote(bot, update, user_data):
     if quote_id is None:
         return query.answer('')
 
-    status = database.add_vote(user.id, quote_id, direction)
+    if data == 0:
+        vote = database.get_user_vote(user.id, quote_id)
+
+        if vote == 0:
+            return query.answer("you haven't voted on this quote!")
+        elif vote == 1:
+            return query.answer(f"{UP_ARROW} you upvoted this quote")
+        elif vote == -1:
+            return query.answer(f"{DOWN_ARROW} you downvoted this quote")
+
+    status = database.add_vote(user.id, quote_id, data)
 
     if status == database.VOTE_ADDED:
         response = "vote added!"
