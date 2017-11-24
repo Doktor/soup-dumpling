@@ -21,69 +21,17 @@ def parse_limit(args, default=15):
     return limit if limit > 0 else default
 
 
-def handle_most_quoted(bot, update, args=None, user_data=None):
-    if user_data is None:
-        chat_id = update.message.chat_id
-    else:
-        chat_id = user_data['current']
+def handle_stats(bot, update,
+        args=None, user_data=None, general=True, quoted=True, added=True):
 
-    limit = parse_limit(args, default=15)
-
-    total_count = database.get_quote_count(chat_id)
-    most_quoted = database.get_most_quoted(chat_id, limit=limit)
-
-    response = ["<b>Users with the most quotes</b>"]
-    response.extend(format_users(most_quoted, total_count))
-
-    update.message.reply_text('\n'.join(response), parse_mode='HTML')
-
-
-handler_most_quoted = CommandHandler(
-    'most_quoted', handle_most_quoted, filters=Filters.group)
-dm_handler_most_quoted = CommandHandler(
-    'most_quoted', handle_most_quoted, pass_args=True, **dm_kwargs)
-
-
-def handle_most_added(bot, update, args=None, user_data=None):
-    if user_data is None:
-        chat_id = update.message.chat_id
-    else:
-        chat_id = user_data['current']
-
-    limit = parse_limit(args, default=15)
-
-    total_count = database.get_quote_count(chat_id)
-    most_added = database.get_most_quotes_added(chat_id, limit=limit)
-
-    response = ["<b>Users who add the most quotes</b>"]
-    response.extend(format_users(most_added, total_count))
-
-    update.message.reply_text('\n'.join(response), parse_mode='HTML')
-
-
-handler_most_added = CommandHandler(
-    'most_added', handle_most_added, filters=Filters.group)
-dm_handler_most_added = CommandHandler(
-    'most_added', handle_most_added, pass_args=True, **dm_kwargs)
-
-
-def handle_stats(bot, update, args=None, user_data=None):
     if user_data is None:
         chat_id = update.message.chat_id
     else:
         chat_id = user_data['current']
 
     limit = parse_limit(args, default=5)
-
     response = list()
 
-    # Total quotes
-    total_count = database.get_quote_count(chat_id)
-
-    response.append("<b>Overall</b>")
-    response.append("• {0} total quotes".format(total_count))
-
-    # First and last quote
     first = database.get_first_quote(chat_id)
     last = database.get_last_quote(chat_id)
 
@@ -94,34 +42,61 @@ def handle_stats(bot, update, args=None, user_data=None):
         update.message.reply_text(response)
         return
 
-    first_ts = datetime.fromtimestamp(first.quote.sent_at).strftime(TIME_FORMAT)
-    last_ts = datetime.fromtimestamp(last.quote.sent_at).strftime(TIME_FORMAT)
+    total_count = database.get_quote_count(chat_id)
 
-    response.append(
-        "• First: {0} by {1}".format(first_ts, first.user.first_name))
-    response.append(
-        "• Last: {0} by {1}".format(last_ts, last.user.first_name))
-    response.append("")
+    if general:
+        # Total quotes
+        response.append("<b>Overall</b>")
+        response.append("• {0} total quotes".format(total_count))
 
-    # Users
-    most_quoted = database.get_most_quoted(chat_id, limit=limit)
+        # First and last quote
+        fts = datetime.fromtimestamp(first.quote.sent_at).strftime(TIME_FORMAT)
+        lts = datetime.fromtimestamp(last.quote.sent_at).strftime(TIME_FORMAT)
 
-    response.append("<b>Users with the most quotes</b>")
-    response.extend(format_users(most_quoted, total_count))
-    response.append("")
+        response.append(
+            "• First: {0} by {1}".format(fts, first.user.first_name))
+        response.append(
+            "• Last: {0} by {1}".format(lts, last.user.first_name))
+        response.append("")
 
-    added_most = database.get_most_quotes_added(chat_id, limit=limit)
+    if quoted:
+        most_quoted = database.get_most_quoted(chat_id, limit=limit)
 
-    response.append("<b>Users who add the most quotes</b>")
-    response.extend(format_users(added_most, total_count))
+        response.append("<b>Users with the most quotes</b>")
+        response.extend(format_users(most_quoted, total_count))
+        response.append("")
 
-    update.message.reply_text('\n'.join(response), parse_mode='HTML')
+    if added:
+        added_most = database.get_most_quotes_added(chat_id, limit=limit)
+
+        response.append("<b>Users who add the most quotes</b>")
+        response.extend(format_users(added_most, total_count))
+
+    update.message.reply_text('\n'.join(response).rstrip(), parse_mode='HTML')
 
 
 handler_stats = CommandHandler(
     'stats', handle_stats, filters=Filters.group)
 dm_handler_stats = CommandHandler(
     'stats', handle_stats, pass_args=True, **dm_kwargs)
+
+
+handle_most_quoted = functools.partial(
+    handle_stats, general=False, quoted=True, added=False)
+
+handler_most_quoted = CommandHandler(
+    'most_quoted', handle_most_quoted, filters=Filters.group)
+dm_handler_most_quoted = CommandHandler(
+    'most_quoted', handle_most_quoted, pass_args=True, **dm_kwargs)
+
+
+handle_most_added = functools.partial(
+    handle_stats, general=False, quoted=False, added=True)
+
+handler_most_added = CommandHandler(
+    'most_added', handle_most_added, filters=Filters.group)
+dm_handler_most_added = CommandHandler(
+    'most_added', handle_most_added, pass_args=True, **dm_kwargs)
 
 
 def format_user_scores(scores):
