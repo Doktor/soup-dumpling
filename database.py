@@ -1,3 +1,4 @@
+import functools
 import os
 import sqlite3
 
@@ -96,6 +97,30 @@ class QuoteDatabase:
 
         return self.c.fetchall()
 
+    def get_user_score(self, user_id, chat_id):
+        """Returns the total number of upvotes and downvotes, and the total
+        score for the user's quotes."""
+        total_up = total_score = total_down = 0
+
+        for quote_id in self.get_user_quote_ids(user_id, chat_id):
+            up, score, down = self.get_votes_by_id(quote_id)
+
+            total_up += up
+            total_score += score
+            total_down += down
+
+        return total_up, total_score, total_down
+
+    def get_user_quote_ids(self, user_id, chat_id):
+        """Returns a list of IDs of the user's quotes."""
+        self.connect()
+
+        select = """SELECT id FROM quote
+            WHERE sent_by = ? AND chat_id = ? AND deleted = 0;"""
+        self.c.execute(select, (user_id, chat_id))
+
+        return [item[0] for item in self.c.fetchall()]
+
     # Chat methods
 
     def get_chat_by_id(self, chat_id):
@@ -135,6 +160,19 @@ class QuoteDatabase:
                 (chat.id, chat.type, chat.title, chat.username))
 
         self.db.commit()
+
+    def get_chat_user_ids(self, chat_id):
+        """Returns a list of IDs of users in the given chat."""
+        self.connect()
+
+        select = """SELECT user.id FROM user
+            INNER JOIN membership AS m
+            WHERE m.chat_id = ?
+            AND m.user_id = user.id;"""
+
+        self.c.execute(select, (chat_id,))
+
+        return [item[0] for item in self.c.fetchall()]
 
     # Membership methods
 
@@ -192,6 +230,34 @@ class QuoteDatabase:
         self.c.execute(select, (chat_id, limit))
 
         return self.c.fetchall()
+
+    def get_user_scores(self, chat_id, limit=5, direction=1):
+        self.connect()
+
+        user_ids = self.get_chat_user_ids(chat_id)
+
+        scores = []
+        for user_id in user_ids:
+            up, score, down = self.get_user_score(user_id, chat_id)
+
+            user = [user_id, up, score, down]
+            scores.append(user)
+
+        users = sorted(scores, key=lambda item: item[2], reverse=direction == 1)
+
+        final = []
+        for data in users[:limit]:
+            user = self.get_user_by_id(data[0])
+
+            final.append([user.first_name, user.last_name, *data[1:]])
+
+        return final
+
+    get_lowest_scoring = functools.partialmethod(get_user_scores, direction=-1)
+    """Returns users with the lowest overall scores."""
+
+    get_highest_scoring = functools.partialmethod(get_user_scores, direction=1)
+    """Returns users with the highest overall scores."""
 
     # Quote methods
 

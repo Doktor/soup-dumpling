@@ -1,4 +1,6 @@
+import functools
 from datetime import datetime
+from html import escape
 from telegram.ext import CommandHandler, Filters
 
 from handlers.quotes import dm_kwargs
@@ -120,3 +122,65 @@ handler_stats = CommandHandler(
     'stats', handle_stats, filters=Filters.group)
 dm_handler_stats = CommandHandler(
     'stats', handle_stats, pass_args=True, **dm_kwargs)
+
+
+def format_user_scores(scores):
+    temp = []
+
+    for first, last, up, score, down in scores:
+        t = f"• {score} (+{up}/-{down}): {first} {last or ''}".strip()
+        temp.append(escape(t))
+
+    return temp
+
+
+def handle_scores(bot, update, args=None, user_data=None, high=True, low=True):
+    if user_data is None:
+        chat_id = update.message.chat_id
+    else:
+        chat_id = user_data['current']
+
+    limit = parse_limit(args, default=5)
+
+    response = []
+
+    if high:
+        # Highest scores
+        high_scores = database.get_highest_scoring(chat_id, limit=limit)
+
+        response.append("<b>Users with the highest scores</b>")
+        response.extend(format_user_scores(high_scores))
+
+    if high and low:
+        response.append("")
+
+    if low:
+        # Lowest scores
+        low_scores = database.get_lowest_scoring(chat_id, limit=limit)
+
+        response.append("<b>Users with the lowest scores</b>")
+        response.extend(format_user_scores(low_scores))
+
+    update.message.reply_text('\n'.join(response), parse_mode='HTML')
+
+
+handler_scores = CommandHandler(
+    'scores', handle_scores, filters=Filters.group)
+dm_handler_scores = CommandHandler(
+    'scores', handle_scores, pass_args=True, **dm_kwargs)
+
+
+handle_hi_scores = functools.partial(handle_scores, high=True, low=False)
+
+handler_hi_scores = CommandHandler(
+    'hi_scores', handle_hi_scores, filters=Filters.group)
+dm_handler_hi_scores = CommandHandler(
+    'hi_scores', handle_hi_scores, pass_args=True, **dm_kwargs)
+
+
+handle_lo_scores = functools.partial(handle_scores, high=False, low=True)
+
+handler_lo_scores = CommandHandler(
+    'lo_scores', handle_lo_scores, filters=Filters.group)
+dm_handler_lo_scores = CommandHandler(
+    'lo_scores', handle_lo_scores, pass_args=True, **dm_kwargs)
