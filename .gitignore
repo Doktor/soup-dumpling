@@ -12,6 +12,7 @@ tokens/
 .idea/
 *.log
 *.out
+debug
 
 # macOS files
 .DS_Store/
