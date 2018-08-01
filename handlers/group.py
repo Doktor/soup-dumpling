@@ -4,17 +4,25 @@ from classes import User
 from database import QuoteDatabase
 from main import database, username
 
+LOUDLY_CRYING_FACE = '\U0001F62D'
+ANGRY_FACE = '\U0001F620'
+POUTING_FACE = '\U0001F621'
+SMILING_FACE_WITH_SUNGLASSES = '\U0001F60E'
 
-LOUDLY_CRYING_FACE = L = '\U0001f62d'
+
+def format_response(s, emoji):
+    if emoji is not None:
+        return f' {emoji} '.join(s.split(' '))
+    return s
 
 
-def handle_addquote(bot, update, word='quote'):
+def handle_addquote(bot, update, word='quote', emoji=None):
     message = update.message
     quote = update.message.reply_to_message
 
     assert quote is not None
 
-    # Only text messages can be added as quotes
+    # Only text messages or media captions can be quoted
     if (quote.photo is not None or quote.video is not None) and quote.caption:
         text = quote.caption
         text_html = text
@@ -40,12 +48,12 @@ def handle_addquote(bot, update, word='quote'):
 
     # Bot messages can't be added as quotes
     if sent_by.username == username.lstrip('@'):
-        response = f"can't {word} bot messages"
+        response = format_response(f"can't {word} soup messages", emoji)
         return update.message.reply_text(response)
 
     # Users can't add their own messages as quotes
     if sent_by.id == quoted_by.id:
-        response = f"can't {word} own messages"
+        response = format_response(f"can't {word} your own messages", emoji)
         return update.message.reply_text(response)
 
     database.add_or_update_user(User.from_telegram(sent_by))
@@ -60,9 +68,10 @@ def handle_addquote(bot, update, word='quote'):
     elif status == database.QUOTE_ALREADY_EXISTS:
         response = f"{word} already exists"
     elif status == database.QUOTE_PREVIOUSLY_DELETED:
-        response = f"{word} was previously deleted"
+        response = format_response(f"this {word} was previously deleted", emoji)
         return update.message.reply_text(response)
 
+    response = format_response(response, emoji)
     message = update.message.reply_text(response)
 
     database.add_message(message.chat_id, message.message_id, result.quote.id)
@@ -73,7 +82,15 @@ def handle_addqoute(bot, update):
 
 
 def handle_sadquote(bot, update):
-    return handle_addquote(bot, update, word=f'{L} quote {L}')
+    return handle_addquote(bot, update, emoji=LOUDLY_CRYING_FACE)
+
+
+def handle_madquote(bot, update):
+    return handle_addquote(bot, update, emoji=POUTING_FACE)
+
+
+def handle_radquote(bot, update):
+    return handle_addquote(bot, update, emoji=SMILING_FACE_WITH_SUNGLASSES)
 
 
 handler_addquote = CommandHandler(
@@ -84,3 +101,6 @@ handler_addqoute = CommandHandler(
 
 handler_sadquote = CommandHandler(
     'sadquote', handle_sadquote, filters=Filters.reply & Filters.group)
+
+handler_madquote = CommandHandler(
+    'madquote', handle_madquote, filters=Filters.reply & Filters.group)
