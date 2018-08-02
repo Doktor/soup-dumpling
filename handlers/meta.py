@@ -130,3 +130,16 @@ def handle_user_left(bot, update):
 
 handler_user_left = MessageHandler(
     Filters.status_update.left_chat_member, handle_user_left)
+
+
+def handle_group_migration(bot, update):
+    if hasattr(update.message, 'migrate_to_chat_id'):
+        database.migrate_chat(
+            update.message.chat.id, update.message.migrate_to_chat_id)
+
+    elif hasattr(update.message, 'migrate_from_chat_id'):
+        assert not database.chat_exists(update.message.migrate_from_chat_id)
+
+
+handler_group_migration = MessageHandler(
+    Filters.status_update.migrate, handle_group_migration)

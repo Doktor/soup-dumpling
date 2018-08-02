@@ -136,21 +136,21 @@ class QuoteDatabase:
         else:
             return Chat.from_database(chat)
 
-    def chat_exists(self, chat):
+    def chat_exists(self, chat_id):
         """Determines if the given chat exists in the database."""
         self.connect()
 
         select = "SELECT EXISTS(SELECT * FROM chat WHERE id = ? LIMIT 1);"
-        self.c.execute(select, (chat.id,))
+        self.c.execute(select, (chat_id,))
 
-        return self.c.fetchone()[0]
+        return bool(self.c.fetchone()[0])
 
     def add_or_update_chat(self, chat):
         """Adds a chat to the database if it doesn't exist, or updates its data
         if it does."""
         self.connect()
 
-        if self.chat_exists(chat):
+        if self.chat_exists(chat.id):
             update = ("UPDATE chat SET "
                 "title = ?, username = ? WHERE id = ?;")
             self.c.execute(update, (chat.title, chat.username, chat.id))
@@ -158,6 +158,20 @@ class QuoteDatabase:
             insert = "INSERT INTO chat VALUES (?, ?, ?, ?);"
             self.c.execute(insert,
                 (chat.id, chat.type, chat.title, chat.username))
+
+        self.db.commit()
+
+    def migrate_chat(self, from_id, to_id):
+        """Updates a chat's ID when it's converted from a regular group to
+        a supergroup."""
+        self.connect()
+
+        update = "UPDATE chat SET id = ? WHERE id = ?;"
+        self.c.execute(update, (to_id, from_id))
+
+        for table in ('membership', 'quote', 'quote_message'):
+            update = f"UPDATE {table} SET chat_id = ? WHERE chat_id = ?;"
+            self.c.execute(update, (to_id, from_id))
 
         self.db.commit()
 
