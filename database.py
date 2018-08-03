@@ -406,24 +406,43 @@ class QuoteDatabase:
         user = self.get_user_by_id(quote.sent_by)
         return Result(quote, user)
 
-    def search_quote(self, chat_id, search_terms):
+    def search_quote(self, chat_id, search_terms, clauses=[], params=[]):
         """Returns a random quote matching the search terms, and the user
         who wrote the quote."""
         self.connect()
 
-        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
-            content_html FROM quote
-            WHERE content LIKE ?
-            AND deleted = 0
-            ORDER BY RANDOM() LIMIT 1;"""
-        self.c.execute(select, ('%' + search_terms + '%',))
+        select = [
+            "SELECT quote.id, chat_id, message_id, sent_at, sent_by, "
+                "content_html, quoted_by, "
+                "user.first_name || COALESCE(' ' || user.last_name, '') AS full_name",
+            "FROM quote INNER JOIN user",
+            "WHERE quote.chat_id = ?",
+            "AND quote.deleted = 0",
+        ]
+
+        if search_terms:
+            select.append("AND quote.content LIKE ?")
+            params = [chat_id, f'%{search_terms}%', *params]
+        else:
+            params = [chat_id, *params]
+
+        if clauses:
+            select.append(f"AND {' AND '.join(clauses)}")
+
+        select.append("ORDER BY RANDOM() LIMIT 1;")
+
+        select = '\n'.join(select)
+        self.c.execute(select, tuple(params))
 
         row = self.c.fetchone()
         if row is None:
             return None
 
-        quote = Quote.from_database(row)
+        # Drop the last item, the user's full name
+        quote = Quote.from_database(row[:-1])
         user = self.get_user_by_id(quote.sent_by)
+        quote.quoted_by = self.get_user_by_id(quote.quoted_by)
+
         return Result(quote, user)
 
     def add_quote(self, chat_id, message_id, is_forward,

@@ -1,3 +1,7 @@
+import datetime
+import random
+import re
+import pytz
 from html import escape
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, TelegramError
 from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
@@ -208,6 +212,75 @@ handler_random = CommandHandler('random', handle_random, filters=Filters.group)
 dm_handler_random = CommandHandler('random', handle_random, **dm_kwargs)
 
 
+class Tag:
+    def __init__(self, value=None):
+        self.value = value
+
+    def sql(self, quote):
+        raise NotImplementedError
+
+
+class AuthorTag(Tag):
+    def __init__(self, value=None):
+        self.value = value.lower()
+
+    def sql(self):
+        where = """quote.sent_by IN
+            (SELECT user.id FROM user
+            WHERE full_name LIKE ? OR user.username LIKE ?)"""
+        params = [f'%{self.value}%'] * 2
+
+        return where, params
+
+
+class QuotedByTag(Tag):
+    def __init__(self, value=None):
+        self.value = value.lower()
+
+    def sql(self):
+        where = """quote.quoted_by IN
+            (SELECT user.id FROM user
+            WHERE full_name LIKE ? OR user.username LIKE ?)"""
+
+        params = [f'%{self.value}%'] * 2
+
+        return where, params
+
+
+class DateTag(Tag):
+    def __init__(self, value=None):
+        try:
+            self.day = datetime.datetime.strptime(value, '%Y-%m-%d')
+            self.next_day = self.day + datetime.timedelta(days=1)
+        except ValueError as e:
+            raise e
+
+    def sql(self):
+        where = "quote.sent_at >= ? AND quote.sent_at < ?"
+        params = [int(self.day.timestamp()), int(self.next_day.timestamp())]
+
+        return where, params
+
+
+TAGS = {
+    'author': AuthorTag,
+    'quoted_by': QuotedByTag,
+    'date': DateTag,
+}
+
+
+def create_tag(name, value):
+    tag = TAGS.get(name, None)
+
+    if tag is None:
+        raise ValueError
+
+    return tag(value=value)
+
+
+PATTERN = re.compile(r'^([-\w]+):([-\w]+)$')
+
+
 def handle_search(bot, update, args=list(), user_data=None):
     if user_data is None:
         chat_id = update.message.chat_id
@@ -216,17 +289,36 @@ def handle_search(bot, update, args=list(), user_data=None):
 
     if not args:
         return
-    else:
-        args = ' '.join(args)
 
-    user = update.message.from_user
-    result = database.search_quote(chat_id, args)
+    terms, clauses, params = [], [], []
+
+    for item in args:
+        match = PATTERN.search(item)
+
+        # Tags
+        if match is not None:
+            try:
+                filter_ = create_tag(*match.groups())
+            except ValueError:
+                pass
+            else:
+                c, p = filter_.sql()
+                clauses.append(c)
+                params.extend(p)
+        # Search terms
+        else:
+            terms.append(item)
+
+    terms = ' '.join(terms)
+    result = database.search_quote(chat_id, terms, clauses, params)
 
     if len(args) > TRUNCATE_ARGS_LENGTH:
         args = args[:TRUNCATE_ARGS_LENGTH] + '...'
 
+    user = update.message.from_user
+
     if result is None:
-        response = 'no quotes found for search terms "{}"'.format(args)
+        response = 'no quotes found'
         update.message.reply_text(response)
     else:
         votes = create_vote_buttons(
