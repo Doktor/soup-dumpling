@@ -189,7 +189,8 @@ class AuthorTag(Tag):
     def sql(self):
         where = """quote.sent_by IN
             (SELECT user.id FROM user
-            WHERE full_name LIKE ? OR user.username LIKE ?)"""
+            WHERE user.first_name || COALESCE(' ' || user.last_name, '') LIKE ?
+            OR user.username LIKE ?)"""
         params = [f'%{self.value}%'] * 2
 
         return where, params
@@ -202,7 +203,8 @@ class QuotedByTag(Tag):
     def sql(self):
         where = """quote.quoted_by IN
             (SELECT user.id FROM user
-            WHERE full_name LIKE ? OR user.username LIKE ?)"""
+            WHERE user.first_name || COALESCE(' ' || user.last_name, '') LIKE ?
+            OR user.username LIKE ?)"""
 
         params = [f'%{self.value}%'] * 2
 

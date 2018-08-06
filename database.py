@@ -413,8 +413,7 @@ class QuoteDatabase:
 
         select = [
             "SELECT quote.id, chat_id, message_id, sent_at, sent_by, "
-                "content_html, quoted_by, "
-                "user.first_name || COALESCE(' ' || user.last_name, '') AS full_name",
+                "content_html, quoted_by "
             "FROM quote INNER JOIN user",
             "WHERE quote.chat_id = ?",
             "AND quote.deleted = 0",
@@ -438,8 +437,7 @@ class QuoteDatabase:
         if row is None:
             return None
 
-        # Drop the last item, the user's full name
-        quote = Quote.from_database(row[:-1])
+        quote = Quote.from_database(row)
         user = self.get_user_by_id(quote.sent_by)
         quote.quoted_by = self.get_user_by_id(quote.quoted_by)
 
