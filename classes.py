@@ -47,7 +47,7 @@ class Chat:
 
 class Quote:
     def __init__(self, id_, chat_id, message_id, sent_at, sent_by,
-            content_html, quoted_by=None):
+            content_html, quoted_by=None, score=0):
         self.id = id_
         self.chat_id = chat_id
         self.message_id = message_id
@@ -55,6 +55,7 @@ class Quote:
         self.sent_by = sent_by
         self.content_html = content_html
         self.quoted_by = quoted_by
+        self.score = score
 
     @classmethod
     def from_database(cls, quote):

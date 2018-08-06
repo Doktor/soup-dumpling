@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS quote (
         ON UPDATE CASCADE
         ON DELETE RESTRICT,
     deleted INTEGER DEFAULT 0 NOT NULL,
+    score INTEGER DEFAULT 0 NOT NULL,
 
     UNIQUE(chat_id, message_id) ON CONFLICT ROLLBACK,
     UNIQUE(sent_at, sent_by, content_html) ON CONFLICT ROLLBACK

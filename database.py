@@ -554,6 +554,11 @@ class QuoteDatabase:
 
         _, score, _ = self.get_votes_by_id(quote_id)
 
+        # Update the stored score
+        update = "UPDATE quote SET score = ? WHERE id = ?;"
+        self.c.execute(update, (score, quote_id))
+        self.db.commit()
+
         if score <= self.SCORE_TO_DELETE:
             self.delete_quote(quote_id)
             return self.QUOTE_DELETED

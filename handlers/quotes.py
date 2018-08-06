@@ -226,23 +226,42 @@ class DateTag(Tag):
         return where, params
 
 
+class ScoreTag(Tag):
+    def __init__(self, value=None, cmp='='):
+        self.value = value
+        self.cmp = cmp
+
+    def sql(self):
+        where = f"quote.score {self.cmp} ?"
+        params = [self.value]
+
+        return where, params
+
+
 TAGS = {
     'author': AuthorTag,
     'quoted_by': QuotedByTag,
     'date': DateTag,
+    'score': ScoreTag,
 }
 
 
-def create_tag(name, value):
+def create_tag(name, value, cmp=None):
     tag = TAGS.get(name, None)
 
     if tag is None:
-        raise ValueError
+        raise ValueError("Invalid tag name")
+
+    if cmp is not None:
+        if cmp not in ['<', '<=', '>=', '>']:
+            raise ValueError("Invalid comparator")
+        else:
+            return tag(value=value, cmp=cmp)
 
     return tag(value=value)
 
 
-PATTERN = re.compile(r'^([-\w]+):([-\w]+)$')
+PATTERN = re.compile(r'^([-\w]+):(<|<=|>=|>)?([-\w]+)$')
 
 
 def handle_search(bot, update, args=list(), user_data=None):
@@ -261,10 +280,18 @@ def handle_search(bot, update, args=list(), user_data=None):
 
         # Tags
         if match is not None:
+            groups = match.groups()
+
+            if len(groups) == 2:
+                name, value = groups
+                cmp = None
+            elif len(groups) == 3:
+                name, cmp, value = groups
+
             try:
-                filter_ = create_tag(*match.groups())
-            except ValueError:
-                pass
+                filter_ = create_tag(name, value, cmp=cmp)
+            except ValueError as e:
+                raise ValueError from e
             else:
                 c, p = filter_.sql()
                 clauses.append(c)
