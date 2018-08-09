@@ -10,7 +10,7 @@ from handlers import *
 logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
     format="%(asctime)s | %(levelname)s @ %(name)s: %(message)s",
-    level=logging.INFO
+    level=logging.ERROR
 )
 
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"

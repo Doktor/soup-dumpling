@@ -1,7 +1,6 @@
 import datetime
 import random
 import re
-import pytz
 from html import escape
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, TelegramError
 from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
