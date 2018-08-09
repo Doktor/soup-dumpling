@@ -10,17 +10,17 @@ from main import database, username, VERSION
 REPOSITORY_NAME = "Doktor/soup-dumpling"
 REPOSITORY_URL = "https://github.com/Doktor/soup-dumpling"
 
-COMMIT_HASH = check_output(['git', 'rev-parse', 'HEAD'],
+COMMIT_HASH = check_output(['/usr/bin/git', 'rev-parse', 'HEAD'],
     encoding='utf8').rstrip('\n')
 COMMIT_URL = REPOSITORY_URL + '/commit/' + COMMIT_HASH
 
-DATE_ARGS = ['git', 'log', COMMIT_HASH,
+DATE_ARGS = ['/usr/bin/git', 'log', COMMIT_HASH,
     '-1', '--date=iso', r'--pretty=format:%cd']
 COMMIT_DATE = check_output(DATE_ARGS, encoding='utf8')[:19]
 
 # Commits that don't exist on the remote branch
 ORIGIN_DIFF = check_output(
-    shlex.split("git log origin/master..master --pretty=oneline"),
+    shlex.split("/usr/bin/git log origin/master..master --pretty=oneline"),
     encoding='utf8')
 
 PUSHED = COMMIT_HASH not in ORIGIN_DIFF
