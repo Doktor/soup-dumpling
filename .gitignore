@@ -6,6 +6,7 @@
 build/
 dist/
 soup_dumpling.egg-info/
+.pytest_cache/
 
 # Compiled files
 *.py[cod]
