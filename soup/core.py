@@ -14,8 +14,6 @@ logging.basicConfig(
 
 TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
 
-VERSION = (3, 0, 0)
-
 # Truncate long quotes if they contain at least this many characters
 TRUNCATE_LENGTH = 800
 

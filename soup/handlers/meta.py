@@ -3,8 +3,9 @@ import shlex
 from subprocess import check_output
 from telegram.ext import CommandHandler, Filters, MessageHandler
 
+from soup.__version__ import VERSION_STRING
 from soup.classes import User, Chat
-from soup.core import database, username, VERSION
+from soup.core import database, username
 
 
 REPOSITORY_NAME = "Doktor/soup-dumpling"
@@ -32,7 +33,6 @@ DATE_ARGS[4] = '--date=relative'
 
 
 def handle_about(bot, update):
-    version = '.'.join((str(n) for n in VERSION))
     updated_relative = check_output(DATE_ARGS, encoding='utf8')
 
     # Add a GitHub link if the current commit exists there
@@ -44,7 +44,7 @@ def handle_about(bot, update):
     mode = 'debug' if DEBUG else 'production'
 
     response = [
-        f'"Nice quote!" - <b>Soup Dumpling {version}</b>',
+        f'"Nice quote!" - <b>Soup Dumpling {VERSION_STRING}</b>',
         f'<i>{COMMIT_DATE} ({updated_relative})</i>',
         '',
         f'Source code at <a href="{REPOSITORY_URL}">{REPOSITORY_NAME}</a>',
@@ -64,7 +64,7 @@ handler_about = CommandHandler('about', handle_about)
 with open('help.txt', 'r', encoding='utf8') as f:
     raw = f.read().strip()
     kwargs = {
-        'version': '.'.join((str(n) for n in VERSION)),
+        'version': VERSION_STRING,
         'readme': REPOSITORY_URL + "/blob/master/README.md"
     }
     help_text = raw.format(**kwargs)
@@ -80,12 +80,11 @@ handler_help = CommandHandler('help', handle_help, filters=Filters.private)
 
 def handle_help_group(bot, update):
     kwargs = {
-        'version': '.'.join((str(n) for n in VERSION)),
         'username': username,
     }
 
     response = [
-        '"Nice help!" - <b>Soup Dumpling {version}</b>',
+        '"Nice help!" - <b>Soup Dumpling {VERSION_STRING}</b>',
         '',
         '• <b>Groups</b>: /addquote',
         ('• <b>Anywhere</b>: /about, /author &lt;name&gt;, /count [term], '

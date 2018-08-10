@@ -1,8 +1,11 @@
 import setuptools
 
+from soup.__version__ import VERSION_STRING
+
+
 setuptools.setup(
     name="soup_dumpling",
-    version='3.0.0',
+    version=VERSION_STRING,
     author="Doktor",
     author_email="doktorthehusky@gmail.com",
 
