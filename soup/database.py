@@ -35,7 +35,7 @@ class QuoteDatabase:
         """Creates the database."""
         self.connect()
 
-        with open('create.sql', 'r') as f:
+        with open('soup/create.sql', 'r') as f:
             create = f.read().strip()
 
         self.c.executescript(create)
