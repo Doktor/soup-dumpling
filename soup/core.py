@@ -3,8 +3,7 @@ from datetime import datetime
 from html import escape
 from telegram.ext import Updater
 
-from database import QuoteDatabase
-from handlers import *
+from soup.database import QuoteDatabase
 
 
 logging.basicConfig(
@@ -80,6 +79,9 @@ def format_users(users, total_count):
     return ret
 
 
+from soup.handlers import *
+
+
 def main():
     ns = globals()
 
@@ -105,6 +107,4 @@ def main():
     quote.run()
 
 
-if __name__ == '__main__':
-    print("[%s] running" % datetime.now())
-    main()
+

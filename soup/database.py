@@ -2,7 +2,7 @@ import functools
 import os
 import sqlite3
 
-from classes import Quote, Result, Chat, User
+from soup.classes import Quote, Result, Chat, User
 
 
 class QuoteDatabase:

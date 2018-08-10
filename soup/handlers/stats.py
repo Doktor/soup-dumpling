@@ -3,8 +3,8 @@ from datetime import datetime
 from html import escape
 from telegram.ext import CommandHandler, Filters
 
-from handlers.quotes import dm_kwargs
-from main import database, format_users, TIME_FORMAT
+from soup.core import database, format_users, TIME_FORMAT
+from soup.handlers.quotes import dm_kwargs
 
 
 def parse_limit(args, default=15):

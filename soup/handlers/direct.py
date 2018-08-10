@@ -3,8 +3,8 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (ConversationHandler, CommandHandler, Filters,
                           MessageHandler)
 
-from handlers.quotes import dm_kwargs
-from main import chunks, database, SELECT_CHAT, SELECTED_CHAT
+from soup.core import chunks, database, SELECT_CHAT, SELECTED_CHAT
+from soup.handlers.quotes import dm_kwargs
 
 
 def handle_cancel(bot, update, user_data):

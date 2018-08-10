@@ -2,6 +2,11 @@
 *.db
 *.bak
 
+# Build files
+build/
+dist/
+soup_dumpling.egg-info/
+
 # Compiled files
 *.py[cod]
 

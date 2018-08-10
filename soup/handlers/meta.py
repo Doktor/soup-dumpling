@@ -3,8 +3,8 @@ import shlex
 from subprocess import check_output
 from telegram.ext import CommandHandler, Filters, MessageHandler
 
-from classes import User, Chat
-from main import database, username, VERSION
+from soup.classes import User, Chat
+from soup.core import database, username, VERSION
 
 
 REPOSITORY_NAME = "Doktor/soup-dumpling"

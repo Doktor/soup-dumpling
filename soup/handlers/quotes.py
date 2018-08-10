@@ -5,7 +5,7 @@ from html import escape
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, TelegramError
 from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
 
-from main import database, TRUNCATE_ARGS_LENGTH, format_quote
+from soup.core import database, TRUNCATE_ARGS_LENGTH, format_quote
 
 dm_kwargs = {
     'filters': Filters.private,

@@ -1,8 +1,8 @@
 from telegram.ext import CommandHandler, Filters
 
-from classes import User
-from database import QuoteDatabase
-from main import database, username
+from soup.classes import User
+from soup.core import database, username
+from soup.database import QuoteDatabase
 
 LOUDLY_CRYING_FACE = '\U0001F62D'
 ANGRY_FACE = '\U0001F620'
