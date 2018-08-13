@@ -1,8 +1,12 @@
 import functools
-import os
-import sqlite3
 
-from soup.classes import Quote, Result, Chat, User
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql import exists
+from sqlalchemy.sql.expression import func
+
+from soup.classes import Base, User, Chat, Quote, QuoteMessage, Vote
 
 
 class QuoteDatabase:
@@ -18,92 +22,55 @@ class QuoteDatabase:
 
     SCORE_TO_DELETE = -5
 
-    def __init__(self, filename='data.db'):
+    def __init__(self, filename='test.db'):
         self.filename = filename
 
-        if not os.path.isfile(filename):
-            self.setup()
+        engine = create_engine("sqlite:///test.db", echo=False)
+        Base.metadata.create_all(engine)
 
-    # Database methods
+        self.session_factory = sessionmaker(bind=engine)
 
-    def connect(self):
-        """Connects to the database."""
-        self.db = sqlite3.connect(self.filename)
-        self.c = self.db.cursor()
-
-    def setup(self):
-        """Creates the database."""
-        self.connect()
-
-        with open('soup/create.sql', 'r') as f:
-            create = f.read().strip()
-
-        self.c.executescript(create)
-        self.db.commit()
+    def create_session(self, **kwargs):
+        return self.session_factory(**kwargs)
 
     # User methods
 
-    def get_user_by_id(self, user_id):
+    def get_user_by_id(self, session, user_id):
         """Returns a User object for the user with the given ID, or None if the
         user doesn't exist."""
-        self.connect()
+        return session.query(User).filter(User.id == user_id).one_or_none()
 
-        select = "SELECT * FROM user WHERE id = ?;"
-        self.c.execute(select, (user_id,))
-
-        user = self.c.fetchone()
-        if not user:
-            return None
-        else:
-            return User.from_database(user)
-
-    def user_exists(self, user):
+    def user_exists(self, session, user_id):
         """Returns whether the given user exists in the database."""
-        self.connect()
+        return session.query(exists().where(User.id == user_id)).scalar()
 
-        select = "SELECT EXISTS(SELECT * FROM user WHERE id = ? LIMIT 1);"
-        self.c.execute(select, (user.id,))
-
-        result = self.c.fetchone()
-        return result[0]
-
-    def add_or_update_user(self, user):
+    def add_or_update_user(self, session, tg_user):
         """Adds a user to the database if they don't exist, or updates their
         data otherwise."""
-        self.connect()
-
-        if self.user_exists(user):
-            update = ("UPDATE user SET "
-                "first_name = ?, last_name = ?, username = ? WHERE id = ?;")
-            self.c.execute(update,
-                (user.first_name, user.last_name, user.username, user.id))
+        if self.user_exists(session, tg_user.id):
+            # Update the user's info
+            user = self.get_user_by_id(session, tg_user.id)
+            user.first_name = tg_user.first_name
+            user.last_name = tg_user.last_name
+            user.username = tg_user.username
         else:
-            insert = "INSERT INTO user VALUES (?, ?, ?, ?);"
-            self.c.execute(insert,
-                (user.id, user.first_name, user.last_name, user.username))
+            user = User(
+                id=tg_user.id, first_name=tg_user.first_name,
+                last_name=tg_user.last_name, username=tg_user.username)
+            session.add(user)
 
-        self.db.commit()
-
-    def get_user_chats(self, user_id):
+    def get_user_chats(self, session, user_id):
         """Returns a list of chats that a user is a member of."""
-        self.connect()
+        user = self.get_user_by_id(session, user_id)
+        return user.chats
 
-        select = """SELECT chat.id, chat.title AS title FROM chat
-            INNER JOIN membership AS mem
-            ON mem.chat_id = chat.id
-            AND mem.user_id = ?
-            ORDER BY title COLLATE NOCASE"""
-        self.c.execute(select, (user_id,))
-
-        return self.c.fetchall()
-
-    def get_user_score(self, user_id, chat_id):
+    def get_user_score(self, session, user_id, chat_id):
         """Returns the total number of upvotes and downvotes, and the total
         score for the user's quotes."""
         total_up = total_score = total_down = 0
 
-        for quote_id in self.get_user_quote_ids(user_id, chat_id):
-            up, score, down = self.get_votes_by_id(quote_id)
+        for quote in self.get_user_quotes(session, user_id, chat_id):
+            up, score, down = self.get_votes_by_id(session, quote.id)
 
             total_up += up
             total_score += score
@@ -111,161 +78,101 @@ class QuoteDatabase:
 
         return total_up, total_score, total_down
 
-    def get_user_quote_ids(self, user_id, chat_id):
-        """Returns a list of IDs of the user's quotes."""
-        self.connect()
-
-        select = """SELECT id FROM quote
-            WHERE sent_by = ? AND chat_id = ? AND deleted = 0;"""
-        self.c.execute(select, (user_id, chat_id))
-
-        return [item[0] for item in self.c.fetchall()]
+    def get_user_quotes(self, session, user_id, chat_id):
+        """Returns the user's quotes."""
+        return (session.query(Quote)
+            .filter(
+                Quote.sent_by_id == user_id,
+                Quote.chat_id == chat_id,
+                Quote.deleted == False))
 
     # Chat methods
 
-    def get_chat_by_id(self, chat_id):
+    def get_chat_by_id(self, session, chat_id):
         """Returns the chat with the given ID."""
-        self.connect()
+        return session.query(Chat).filter(Chat.id == chat_id).one_or_none()
 
-        select = "SELECT * FROM chat WHERE id = ?;"
-        self.c.execute(select, (chat_id,))
-
-        chat = self.c.fetchone()
-        if not chat:
-            return None
-        else:
-            return Chat.from_database(chat)
-
-    def chat_exists(self, chat_id):
+    def chat_exists(self, session, chat_id):
         """Determines if the given chat exists in the database."""
-        self.connect()
+        return session.query(exists().where(Chat.id == chat_id)).scalar()
 
-        select = "SELECT EXISTS(SELECT * FROM chat WHERE id = ? LIMIT 1);"
-        self.c.execute(select, (chat_id,))
-
-        return bool(self.c.fetchone()[0])
-
-    def add_or_update_chat(self, chat):
+    def add_or_update_chat(self, session, tg_chat):
         """Adds a chat to the database if it doesn't exist, or updates its data
         if it does."""
-        self.connect()
-
-        if self.chat_exists(chat.id):
-            update = ("UPDATE chat SET "
-                "title = ?, username = ? WHERE id = ?;")
-            self.c.execute(update, (chat.title, chat.username, chat.id))
+        if self.chat_exists(session, tg_chat.id):
+            # Update the chat's info
+            chat = self.get_chat_by_id(session, tg_chat.id)
+            chat.title = tg_chat.title
+            chat.username = tg_chat.username
         else:
-            insert = "INSERT INTO chat VALUES (?, ?, ?, ?);"
-            self.c.execute(insert,
-                (chat.id, chat.type, chat.title, chat.username))
+            chat = Chat(
+                id=tg_chat.id, type=tg_chat.type,
+                title=tg_chat.title, username=tg_chat.username)
+            session.add(chat)
 
-        self.db.commit()
-
-    def migrate_chat(self, from_id, to_id):
+    def migrate_chat(self, session, from_id, to_id):
         """Updates a chat's ID when it's converted from a regular group to
         a supergroup."""
-        self.connect()
-
-        update = "UPDATE chat SET id = ? WHERE id = ?;"
-        self.c.execute(update, (to_id, from_id))
-
-        for table in ('membership', 'quote', 'quote_message'):
-            update = f"UPDATE {table} SET chat_id = ? WHERE chat_id = ?;"
-            self.c.execute(update, (to_id, from_id))
-
-        self.db.commit()
-
-    def get_chat_user_ids(self, chat_id):
-        """Returns a list of IDs of users in the given chat."""
-        self.connect()
-
-        select = """SELECT user.id FROM user
-            INNER JOIN membership AS m
-            WHERE m.chat_id = ?
-            AND m.user_id = user.id;"""
-
-        self.c.execute(select, (chat_id,))
-
-        return [item[0] for item in self.c.fetchall()]
+        chat = self.get_chat_by_id(session, from_id)
+        chat.id = to_id
 
     # Membership methods
 
-    def add_membership(self, user_id, chat_id):
+    def add_membership(self, session, user_id, chat_id):
         """Adds a membership listing, indicating that a user is in a chat."""
-        self.connect()
+        user = self.get_user_by_id(session, user_id)
+        chat = self.get_chat_by_id(session, chat_id)
 
-        select = "INSERT INTO membership (user_id, chat_id) VALUES (?, ?)"
-        try:
-            self.c.execute(select, (user_id, chat_id))
-        except sqlite3.IntegrityError:
-            pass
-        else:
-            self.db.commit()
+        if chat not in user.chats:
+            user.chats.append(chat)
+            session.add(user)
 
-    def remove_membership(self, user_id, chat_id):
+    def remove_membership(self, session, user_id, chat_id):
         """Removes a membership listing, when a user leaves or is removed from
         a group."""
-        self.connect()
+        user = self.get_user_by_id(user_id)
+        chat = self.get_chat_by_id(chat_id)
 
-        delete = "DELETE FROM membership WHERE user_id = ? AND chat_id = ?;"
-        self.c.execute(delete, (user_id, chat_id))
+        user.chats.remove(chat)
 
     # User ranking methods
 
-    def get_most_quoted(self, chat_id, limit=5):
+    def rank_users(self, session, chat_id, column, limit=5):
+        count = func.count(User.id).label('count')
+
+        return (session.query(User, count)
+            .join(Quote, column == User.id)
+            .filter(Quote.chat_id == chat_id, Quote.deleted == False)
+            .group_by(column)
+            .order_by(count.desc())
+            .limit(limit))
+
+    def get_most_quoted(self, session, chat_id, limit=5):
         """Returns the names of the users who have the most quotes attributed
         to them."""
-        self.connect()
+        return self.rank_users(session, chat_id, Quote.sent_by_id, limit=limit)
 
-        select = """SELECT COUNT(*) AS count, user.first_name, user.last_name
-            FROM quote INNER JOIN user
-            ON quote.sent_by = user.id
-            AND quote.chat_id = ?
-            AND deleted = 0
-            GROUP BY quote.sent_by
-            ORDER BY count DESC
-            LIMIT ?"""
-        self.c.execute(select, (chat_id, limit))
-
-        return self.c.fetchall()
-
-    def get_most_quotes_added(self, chat_id, limit=5):
+    def get_most_quotes_added(self, session, chat_id, limit=5):
         """Returns the names of the users who have added the most quotes."""
-        self.connect()
+        return self.rank_users(
+            session, chat_id, Quote.quoted_by_id, limit=limit)
 
-        select = """SELECT COUNT(*) AS count, user.first_name, user.last_name
-            FROM quote INNER JOIN user
-            ON quote.quoted_by = user.id
-            AND quote.chat_id = ?
-            AND deleted = 0
-            GROUP BY quote.quoted_by
-            ORDER BY count DESC
-            LIMIT ?"""
-        self.c.execute(select, (chat_id, limit))
-
-        return self.c.fetchall()
-
-    def get_user_scores(self, chat_id, limit=5, direction=1):
-        self.connect()
-
-        user_ids = self.get_chat_user_ids(chat_id)
-
+    def get_user_scores(self, session, chat_id, limit=5, direction=1):
+        chat = self.get_chat_by_id(session, chat_id)
         scores = []
-        for user_id in user_ids:
-            up, score, down = self.get_user_score(user_id, chat_id)
 
-            user = [user_id, up, score, down]
-            scores.append(user)
+        for user in chat.users:
+            up, score, down = self.get_user_score(session, user.id, chat.id)
 
-        users = sorted(scores, key=lambda item: item[2], reverse=direction == 1)
+            if direction == 1 and score == 0:
+                continue
+            elif direction == -1 and score > 0:
+                continue
 
-        final = []
-        for data in users[:limit]:
-            user = self.get_user_by_id(data[0])
+            scores.append((user, up, score, down))
 
-            final.append([user.first_name, user.last_name, *data[1:]])
-
-        return final
+        users = sorted(scores, key=lambda u: u[2], reverse=direction == 1)
+        return users[:limit]
 
     get_lowest_scoring = functools.partialmethod(get_user_scores, direction=-1)
     """Returns users with the lowest overall scores."""
@@ -275,313 +182,190 @@ class QuoteDatabase:
 
     # Quote methods
 
-    def get_quote_by_id(self, id_):
-        self.connect()
+    def get_quote_by_id(self, session, quote_id):
+        return (session.query(Quote)
+            .filter(Quote.id == quote_id).one_or_none())
 
-        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
-            content_html FROM quote WHERE id = ?;"""
-        self.c.execute(select, (id_,))
+    def get_quote_by_ids(self, session, chat_id, message_id):
+        return (session.query(Quote)
+            .filter(Quote.chat.id == chat_id, Quote.message_id == message_id)
+            .one_or_none())
 
-        row = self.c.fetchone()
-        if row is None:
-            return None
-
-        quote = Quote.from_database(row)
-        user = self.get_user_by_id(quote.sent_by)
-        return Result(quote, user)
-
-    def get_quote_by_ids(self, chat_id, message_id):
-        self.connect()
-
-        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
-            content_html FROM quote WHERE chat_id = ? AND message_id = ?;"""
-        self.c.execute(select, (chat_id, message_id,))
-
-        row = self.c.fetchone()
-        if row is None:
-            return None
-
-        quote = Quote.from_database(row)
-        user = self.get_user_by_id(quote.sent_by)
-        return Result(quote, user)
-
-    def get_quote_count(self, chat_id, search=None):
+    def get_quote_count(self, session, chat_id):
         """Returns the number of quotes added in the given chat."""
-        self.connect()
+        return (session.query(func.count(Quote.id))
+            .filter(Quote.chat_id == chat_id).scalar())
 
-        if search is None:
-            select = """SELECT COUNT(*) FROM quote
-                WHERE quote.chat_id = ?"""
-            self.c.execute(select, (chat_id,))
-            return self.c.fetchone()[0]
-        else:
-            template = """SELECT COUNT(DISTINCT quote.id),
-                user.first_name ||
-                    COALESCE(' ' || user.last_name, '') AS full_name
-                FROM quote INNER JOIN user
-                ON quote.sent_by = user.id
-                AND quote.chat_id = ?
-                AND deleted = 0
-                AND {cond};"""
-
-            # The number of quotes containing the search term
-            select = template.format(cond="quote.content LIKE ?")
-            self.c.execute(select, (chat_id, '%' + search + '%'))
-
-            content = self.c.fetchone()[0]
-
-            # The number of quotes by this author
-            select = template.format(
-                cond="(full_name LIKE ? OR user.username LIKE ?)")
-            search = '%' + search + '%'
-            self.c.execute(select, (chat_id, search, search))
-
-            author = self.c.fetchone()[0]
-
-            return content, author
-
-    def get_first_quote(self, chat_id):
+    def get_first_quote(self, session, chat_id):
         """Returns the first quote added in the given chat."""
-        return self._get_edge_quote(chat_id, 'ASC')
+        return self._get_edge_quote(session, chat_id, 'first')
 
-    def get_last_quote(self, chat_id):
+    def get_last_quote(self, session, chat_id):
         """Returns the last quote added in the given chat."""
-        return self._get_edge_quote(chat_id, 'DESC')
+        return self._get_edge_quote(session, chat_id, 'last')
 
-    def _get_edge_quote(self, chat_id, direction):
+    def _get_edge_quote(self, session, chat_id, direction):
         """Returns the first/last quote added in the given chat."""
-        self.connect()
+        assert direction in ('first', 'last')
 
-        assert direction in ['ASC', 'DESC']
-
-        select = """SELECT id, chat_id, message_id, sent_at, sent_by,
-            content_html FROM quote
-            WHERE chat_id = ?
-            AND deleted = 0
-            ORDER BY sent_at {}
-            LIMIT 1""".format(direction)
-        self.c.execute(select, (chat_id,))
-
-        row = self.c.fetchone()
-        if row is None:
-            return None
-
-        quote = Quote.from_database(row)
-        user = self.get_user_by_id(quote.sent_by)
-        return Result(quote, user)
-
-    def get_random_quote(self, chat_id, name=None):
-        """Returns a random quote, and the user who wrote the quote."""
-        self.connect()
-
-        if name is None:
-            select = """SELECT id, chat_id, message_id, sent_at, sent_by,
-                content_html FROM quote
-                WHERE chat_id = ?
-                ORDER BY RANDOM() LIMIT 1;"""
-            self.c.execute(select, (chat_id,))
+        if direction == 'first':
+            order = Quote.sent_at.asc()
         else:
-            name = name.lstrip('@')
-            select = """SELECT
-                quote.id, chat_id, message_id, sent_at, sent_by, content,
-                user.first_name ||
-                    COALESCE(' ' || user.last_name, '') AS full_name
-                FROM quote INNER JOIN user
-                ON quote.sent_by = user.id
-                AND quote.chat_id = ?
-                AND (full_name LIKE ? OR username LIKE ?)
-                AND deleted = 0
-                ORDER BY RANDOM() LIMIT 1;"""
-            self.c.execute(select,
-                (chat_id, '%' + name + '%', '%' + name + '%'))
+            order = Quote.sent_at.desc()
 
-        row = self.c.fetchone()
-        if row is None:
-            return None
+        return (session.query(Quote)
+            .filter(Quote.chat_id == chat_id, Quote.deleted == False)
+            .order_by(order)
+            .first())
+
+    def get_random_quote(self, session, chat_id, name=None):
+        """Returns a random quote, and the user who wrote the quote."""
+        query = (session.query(Quote)
+            .join(Chat, Quote.chat_id == Chat.id)
+            .filter(Chat.id == chat_id, Quote.deleted == False))
 
         if name is not None:
-            row = row[0:6]
+            query = query.filter(User.username.ilike(f'%{name}%'))
 
-        quote = Quote.from_database(row)
-        user = self.get_user_by_id(quote.sent_by)
-        return Result(quote, user)
+        quote = query.order_by(func.random()).first()
 
-    def search_quote(self, chat_id, search_terms, clauses=[], params=[]):
+        if quote is not None:
+            return quote, quote.sent_by
+        else:
+            return None, None
+
+    def search_quote(self, session, chat_id, terms, tags):
         """Returns a random quote matching the search terms, and the user
         who wrote the quote."""
-        self.connect()
+        query = (session.query(Quote)
+            .filter(Quote.chat_id == chat_id, Quote.deleted == False))
 
-        select = [
-            "SELECT quote.id, chat_id, message_id, sent_at, sent_by, "
-                "content_html, quoted_by "
-            "FROM quote INNER JOIN user",
-            "WHERE quote.chat_id = ?",
-            "AND quote.deleted = 0",
-        ]
+        if terms:
+            query = query.filter(Quote.content.ilike(f'%{terms}%'))
 
-        if search_terms:
-            select.append("AND quote.content LIKE ?")
-            params = [chat_id, f'%{search_terms}%', *params]
+        for tag in tags:
+            query = tag.apply_filter(query)
+
+        quote = query.order_by(func.random()).first()
+
+        print(query)
+
+        if quote is not None:
+            return quote, quote.sent_by
         else:
-            params = [chat_id, *params]
+            return None, None
 
-        if clauses:
-            select.append(f"AND {' AND '.join(clauses)}")
-
-        select.append("ORDER BY RANDOM() LIMIT 1;")
-
-        select = '\n'.join(select)
-        self.c.execute(select, tuple(params))
-
-        row = self.c.fetchone()
-        if row is None:
-            return None
-
-        quote = Quote.from_database(row)
-        user = self.get_user_by_id(quote.sent_by)
-        quote.quoted_by = self.get_user_by_id(quote.quoted_by)
-
-        return Result(quote, user)
-
-    def add_quote(self, chat_id, message_id, is_forward,
-            sent_at, sent_by, content, content_html, quoted_by):
+    def add_quote(self, session, chat_id, message_id, is_forward,
+            sent_at, sent_by_id, content, content_html, quoted_by_id):
         """Inserts a quote."""
-        self.connect()
+        quote = (session.query(Quote.id, Quote.deleted)
+            .filter(Quote.sent_at == sent_at,
+                User.id == sent_by_id,
+                Quote.content_html == content_html)
+            .one_or_none())
 
-        select = """SELECT id, deleted FROM quote
-            WHERE sent_at = ? AND sent_by = ? AND content_html = ?;"""
-        self.c.execute(
-            select, (sent_at, sent_by, content_html))
-
-        result = self.c.fetchone()
-
-        if result is None:
+        if quote is None:
             pass
         else:
-            quote_id, deleted = result
+            quote_id, deleted = quote
 
             if deleted:
                 return None, self.QUOTE_PREVIOUSLY_DELETED
 
-            quote = self.get_quote_by_id(quote_id)
+            quote = self.get_quote_by_id(session, quote_id)
             return quote, self.QUOTE_ALREADY_EXISTS
 
-        insert = """INSERT INTO quote
-            (chat_id, message_id, is_forward,
-            sent_at, sent_by, content, content_html, quoted_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?);"""
+        chat = self.get_chat_by_id(session, chat_id)
+        sent_by = self.get_user_by_id(session, sent_by_id)
+        quoted_by = self.get_user_by_id(session, quoted_by_id)
 
-        self.c.execute(insert,
-            (chat_id, message_id, is_forward,
-                sent_at, sent_by, content, content_html, quoted_by))
-        self.db.commit()
+        quote = Quote(
+            chat=chat, message_id=message_id, is_forward=is_forward,
+            sent_at=sent_at, sent_by=sent_by, content=content,
+            content_html=content_html, quoted_by=quoted_by)
 
-        quote = self.get_quote_by_id(self.c.lastrowid)
+        session.add(quote)
+
         return quote, self.QUOTE_ADDED
 
-    def delete_quote(self, quote_id):
+    def delete_quote(self, session, quote_id):
         """Marks a quote as deleted."""
-        self.connect()
-
-        update = "UPDATE quote SET deleted = 1 WHERE id = ?"
-        self.c.execute(update, (quote_id,))
-        self.db.commit()
+        quote = self.get_quote_by_id(session, quote_id)
+        quote.deleted = True
 
     # Quote message methods
 
-    def add_message(self, chat_id, message_id, quote_id):
+    def add_message(self, session, chat_id, message_id, quote):
         """Adds a quote message, i.e. a bot message that contains a quote."""
-        self.connect()
+        chat = self.get_chat_by_id(session, chat_id)
+        session.add(chat)
 
-        insert = """INSERT INTO quote_message (chat_id, message_id, quote_id)
-            VALUES (?, ?, ?);"""
-        self.c.execute(insert, (chat_id, message_id, quote_id))
-        self.db.commit()
+        qm = QuoteMessage(chat=chat, message_id=message_id, quote=quote)
+        session.add(qm)
 
-    def get_quote_id_from_message(self, chat_id, message_id):
+    def get_quote_id_from_message(self, session, chat_id, message_id):
         """Returns the quote ID corresponding to the given quote message."""
-        self.connect()
+        Qm = QuoteMessage
 
-        select = """SELECT quote_id FROM quote_message
-            WHERE chat_id = ? AND message_id = ?;"""
-        self.c.execute(select, (chat_id, message_id))
+        try:
+            return (session.query(Qm.quote_id)
+                .filter(Qm.chat_id == chat_id,
+                    Qm.message_id == message_id)
+                .scalar())
+        except NoResultFound:
+            return None
 
-        message = self.c.fetchone()
-
-        if message:
-            return message[0]
-
-        return None
-
-    def get_quote_messages(self, quote_id):
+    def get_quote_messages(self, session, quote_id):
         """Returns a list of all messages that refer to the given quote."""
-        self.connect()
-
-        select = """SELECT chat_id, message_id FROM quote_message
-            WHERE quote_id = ?;"""
-        self.c.execute(select, (quote_id,))
-
-        results = self.c.fetchall()
-
-        return [] if results is None else results
+        return (session.query(QuoteMessage)
+            .filter(QuoteMessage.quote_id == quote_id)) or []
 
     # Vote methods
 
-    def get_user_vote(self, user_id, quote_id):
-        self.connect()
+    def get_user_vote(self, session, user_id, quote_id):
+        return (session.query(Vote)
+            .filter(Vote.user_id == user_id, Vote.quote_id == quote_id)
+            .one_or_none())
 
-        select = """SELECT direction FROM vote
-            WHERE user_id = ? AND quote_id = ?;"""
-        self.c.execute(select, (user_id, quote_id))
+    def add_vote(self, session, user_id, quote_id, direction):
+        user = self.get_user_by_id(session, user_id)
+        session.add(user)
+        quote = self.get_quote_by_id(session, quote_id)
+        session.add(quote)
 
-        vote = self.c.fetchone()
-        return 0 if vote is None else vote[0]
+        vote = self.get_user_vote(session, user_id, quote_id)
 
-    def add_vote(self, user_id, quote_id, direction):
-        self.connect()
-
-        vote = self.get_user_vote(user_id, quote_id)
-
-        if vote == 0:
-            pass
-        elif vote == direction:
+        if vote is None:
+            vote = Vote(user=user, quote=quote, direction=direction)
+            session.add(vote)
+        elif vote.direction == direction:
             return self.ALREADY_VOTED
+        else:
+            vote.direction = direction
+            session.add(vote)
 
-        insert = """INSERT OR REPLACE INTO vote (user_id, quote_id, direction)
-            VALUES (?, ?, ?);"""
-        self.c.execute(insert, (user_id, quote_id, direction))
-        self.db.commit()
-
-        _, score, _ = self.get_votes_by_id(quote_id)
-
-        # Update the stored score
-        update = "UPDATE quote SET score = ? WHERE id = ?;"
-        self.c.execute(update, (score, quote_id))
-        self.db.commit()
+        _, score, _ = self.get_votes_by_id(session, quote_id)
+        quote.score = score
 
         if score <= self.SCORE_TO_DELETE:
-            self.delete_quote(quote_id)
+            self.delete_quote(session, quote_id)
             return self.QUOTE_DELETED
         else:
             return self.VOTE_ADDED
 
-    def get_votes(self, chat_id, message_id):
+    def get_votes(self, session, chat_id, message_id):
         """Returns the number of upvotes / downvotes and score for a quote."""
-        self.connect()
+        quote_id = self.get_quote_id_from_message(session, chat_id, message_id)
+        return self.get_votes_by_id(session, quote_id)
 
-        quote_id = self.get_quote_id_from_message(chat_id, message_id)
-
-        return self.get_votes_by_id(quote_id)
-
-    def get_votes_by_id(self, quote_id):
+    def get_votes_by_id(self, session, quote_id):
         """Returns the number of upvotes / downvotes and score for a quote."""
-        select = "SELECT direction FROM vote WHERE quote_id = ?;"
-        self.c.execute(select, (quote_id,))
+        votes = session.query(Vote.direction).filter(Vote.quote_id == quote_id)
 
         up, score, down = 0, 0, 0
 
-        for vote in self.c:
-            vote = vote[0]
+        for vote in votes:
+            vote = vote.direction
 
             if vote == 1:
                 up += 1

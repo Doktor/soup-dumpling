@@ -1,8 +1,7 @@
 from telegram.ext import CommandHandler, Filters
 
-from soup.classes import User
-from soup.core import database, username
-from soup.database import QuoteDatabase
+from soup.core import database, username, session_wrapper
+
 
 LOUDLY_CRYING_FACE = '\U0001F62D'
 ANGRY_FACE = '\U0001F620'
@@ -16,7 +15,8 @@ def format_response(s, emoji):
     return s
 
 
-def handle_addquote(bot, update, word='quote', emoji=None):
+@session_wrapper
+def handle_addquote(bot, update, word='quote', emoji=None, session=None):
     message = update.message
     quote = update.message.reply_to_message
 
@@ -41,10 +41,10 @@ def handle_addquote(bot, update, word='quote', emoji=None):
 
     if is_forward:
         sent_by = quote.forward_from
-        sent_at = quote.forward_date.timestamp()
+        sent_at = quote.forward_date
     else:
         sent_by = quote.from_user
-        sent_at = quote.date.timestamp()
+        sent_at = quote.date
 
     # Bot messages can't be added as quotes
     if sent_by.username == username.lstrip('@'):
@@ -56,10 +56,11 @@ def handle_addquote(bot, update, word='quote', emoji=None):
         response = format_response(f"can't {word} your own messages", emoji)
         return update.message.reply_text(response)
 
-    database.add_or_update_user(User.from_telegram(sent_by))
-    database.add_or_update_user(User.from_telegram(quoted_by))
+    database.add_or_update_user(session, sent_by)
+    database.add_or_update_user(session, quoted_by)
 
-    result, status = database.add_quote(
+    quote, status = database.add_quote(
+        session,
         chat_id, message_id, is_forward,
         sent_at, sent_by.id, text, text_html, quoted_by.id)
 
@@ -68,13 +69,14 @@ def handle_addquote(bot, update, word='quote', emoji=None):
     elif status == database.QUOTE_ALREADY_EXISTS:
         response = f"{word} already exists"
     elif status == database.QUOTE_PREVIOUSLY_DELETED:
-        response = format_response(f"this {word} was previously deleted", emoji)
+        response = format_response(
+            f"this {word} was previously deleted", emoji)
         return update.message.reply_text(response)
 
     response = format_response(response, emoji)
     message = update.message.reply_text(response)
 
-    database.add_message(message.chat_id, message.message_id, result.quote.id)
+    database.add_message(session, message.chat_id, message.message_id, quote)
 
 
 def handle_addqoute(bot, update):

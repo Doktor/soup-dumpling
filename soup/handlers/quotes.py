@@ -1,11 +1,11 @@
 import datetime
-import random
 import re
-from html import escape
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, TelegramError
 from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
 
-from soup.core import database, TRUNCATE_ARGS_LENGTH, format_quote
+from soup.classes import Quote, User
+from soup.core import (
+    database, TRUNCATE_ARGS_LENGTH, format_quote, session_wrapper)
 
 dm_kwargs = {
     'filters': Filters.private,
@@ -18,17 +18,17 @@ UP_ARROW = '\u2B06'
 DOWN_ARROW = '\u2B07'
 
 
-def create_vote_buttons(user_id, quote_id, direct=False):
-    upvotes, score, downvotes = database.get_votes_by_id(quote_id)
+def create_vote_buttons(user_id, quote_id, direct=False, session=None):
+    upvotes, score, downvotes = database.get_votes_by_id(session, quote_id)
 
     text_up = f'{UP_ARROW} ({upvotes})'
     text_zero = f'score {score}'
     text_down = f'{DOWN_ARROW} ({downvotes})'
 
     if direct:
-        vote = database.get_user_vote(user_id, quote_id)
+        vote = database.get_user_vote(session, user_id, quote_id)
 
-        if vote == 0:
+        if vote == 0 or vote is None:
             pass
         elif vote == 1:
             text_up = CHECK_MARK + text_up
@@ -45,7 +45,8 @@ def create_vote_buttons(user_id, quote_id, direct=False):
     return keyboard
 
 
-def handle_vote(bot, update, user_data):
+@session_wrapper
+def handle_vote(bot, update, user_data, session=None):
     query = update.callback_query
 
     user = query.from_user
@@ -64,13 +65,13 @@ def handle_vote(bot, update, user_data):
         quote_chat_id = current_chat_id
 
     quote_id = database.get_quote_id_from_message(
-        quote_chat_id, quote_message.message_id)
+        session, quote_chat_id, quote_message.message_id)
 
     if quote_id is None:
         return query.answer('')
 
     if data == 0:
-        vote = database.get_user_vote(user.id, quote_id)
+        vote = database.get_user_vote(session, user.id, quote_id).direction
 
         if vote == 0:
             return query.answer("you haven't voted on this quote!")
@@ -79,7 +80,7 @@ def handle_vote(bot, update, user_data):
         elif vote == -1:
             return query.answer(f"{DOWN_ARROW} you downvoted this quote")
 
-    status = database.add_vote(user.id, quote_id, data)
+    status = database.add_vote(session, user.id, quote_id, data)
 
     if status == database.VOTE_ADDED:
         if data == 1:
@@ -87,16 +88,16 @@ def handle_vote(bot, update, user_data):
         elif data == -1:
             response = "downvoted!"
     elif status == database.ALREADY_VOTED:
-        database.add_vote(user.id, quote_id, 0)
+        database.add_vote(session, user.id, quote_id, 0)
         response = "vote removed!"
     elif status == database.QUOTE_DELETED:
         response = "vote added and quote deleted!"
         query.answer(response)
 
-        for chat_id, message_id in database.get_quote_messages(quote_id):
+        for qm in database.get_quote_messages(session, quote_id):
             try:
                 bot.edit_message_text(
-                    chat_id=chat_id, message_id=message_id,
+                    chat_id=qm.chat_id, message_id=qm.message_id,
                     text="[quote was deleted]", reply_markup=[])
             except TelegramError as e:
                 # The message is over 48 hours old and can't be edited
@@ -106,7 +107,8 @@ def handle_vote(bot, update, user_data):
 
     query.answer(response)
 
-    keyboard = create_vote_buttons(user.id, quote_id, direct=direct)
+    keyboard = create_vote_buttons(
+        user.id, quote_id, direct=direct, session=session)
 
     bot.edit_message_reply_markup(
         chat_id=current_chat_id, message_id=quote_message.message_id,
@@ -116,57 +118,27 @@ def handle_vote(bot, update, user_data):
 handler_vote = CallbackQueryHandler(handle_vote, pass_user_data=True)
 
 
-def handle_count(bot, update, args=list(), user_data=None):
+@session_wrapper
+def handle_random(bot, update, user_data=None, session=None):
     if user_data is None:
         chat_id = update.message.chat_id
     else:
         chat_id = user_data['current']
 
-    args = ' '.join(args)
+    quote, sent_by = database.get_random_quote(session, chat_id)
 
-    if len(args) > TRUNCATE_ARGS_LENGTH:
-        args = args[:TRUNCATE_ARGS_LENGTH] + '...'
-
-    if not args:
-        count = database.get_quote_count(chat_id)
-        response = "{0} quotes in this chat".format(count)
+    if quote is None:
+        update.message.reply_text("no quotes in database")
     else:
-        content, author = database.get_quote_count(chat_id, search=args)
-        response = (
-            '{0} quotes in this chat for search term "{1}"\n'
-            '{2} content matches, {3} author matches'
-        ).format(content + author, args, content, author)
+        user = update.message.from_user
+        votes = create_vote_buttons(
+            user.id, quote.id, direct=user_data is not None, session=session)
 
-    update.message.reply_text(response)
-
-
-handler_count = CommandHandler(
-    'count', handle_count, filters=Filters.group, pass_args=True)
-dm_handler_count = CommandHandler(
-    'count', handle_count, pass_args=True, **dm_kwargs)
-
-
-def handle_random(bot, update, user_data=None):
-    if user_data is None:
-        chat_id = update.message.chat_id
-    else:
-        chat_id = user_data['current']
-
-    user = update.message.from_user
-    result = database.get_random_quote(chat_id)
-
-    votes = create_vote_buttons(
-        user.id, result.quote.id, direct=user_data is not None)
-
-    if result is None:
-        response = "no quotes in database"
-        update.message.reply_text(response, reply_markup=votes)
-    else:
-        response = format_quote(*result)
+        response = format_quote(quote, sent_by)
         message = update.message.reply_text(
             response, parse_mode='HTML', reply_markup=votes)
 
-        database.add_message(chat_id, message.message_id, result.quote.id)
+        database.add_message(session, chat_id, message.message_id, quote)
 
 
 handler_random = CommandHandler('random', handle_random, filters=Filters.group)
@@ -177,37 +149,26 @@ class Tag:
     def __init__(self, value=None):
         self.value = value
 
-    def sql(self, quote):
+    def apply_filter(self, query):
         raise NotImplementedError
 
 
-class AuthorTag(Tag):
+class UsernameTag(Tag):
     def __init__(self, value=None):
         self.value = value.lower()
 
-    def sql(self):
-        where = """quote.sent_by IN
-            (SELECT user.id FROM user
-            WHERE user.first_name || COALESCE(' ' || user.last_name, '') LIKE ?
-            OR user.username LIKE ?)"""
-        params = [f'%{self.value}%'] * 2
-
-        return where, params
+    def apply_filter(self, query):
+        return (query.join(User, Quote.sent_by_id == User.id)
+            .filter(User.username.ilike(f'%{self.value}%')))
 
 
 class QuotedByTag(Tag):
     def __init__(self, value=None):
         self.value = value.lower()
 
-    def sql(self):
-        where = """quote.quoted_by IN
-            (SELECT user.id FROM user
-            WHERE user.first_name || COALESCE(' ' || user.last_name, '') LIKE ?
-            OR user.username LIKE ?)"""
-
-        params = [f'%{self.value}%'] * 2
-
-        return where, params
+    def apply_filter(self, query):
+        return (query.join(User, Quote.quoted_by_id == User.id)
+            .filter(User.username.ilike(f'%{self.value}%')))
 
 
 class DateTag(Tag):
@@ -218,27 +179,33 @@ class DateTag(Tag):
         except ValueError as e:
             raise e
 
-    def sql(self):
-        where = "quote.sent_at >= ? AND quote.sent_at < ?"
-        params = [int(self.day.timestamp()), int(self.next_day.timestamp())]
-
-        return where, params
+    def apply_filter(self, query):
+        return query.filter(
+            Quote.sent_at >= self.day,
+            Quote.sent_at < self.next_day)
 
 
 class ScoreTag(Tag):
     def __init__(self, value=None, cmp='='):
-        self.value = value
+        self.value = int(value)
         self.cmp = cmp
 
-    def sql(self):
-        where = f"quote.score {self.cmp} ?"
-        params = [self.value]
-
-        return where, params
+    def apply_filter(self, query):
+        if self.cmp == '<':
+            return query.filter(Quote.score < self.value)
+        elif self.cmp == '<=':
+            return query.filter(Quote.score <= self.value)
+        elif self.cmp == '>=':
+            return query.filter(Quote.score >= self.value)
+        elif self.cmp == '>':
+            return query.filter(Quote.score > self.value)
+        else:
+            return query.filter(Quote.score == self.value)
 
 
 TAGS = {
-    'author': AuthorTag,
+    'username': UsernameTag,
+    'u': UsernameTag,
     'quoted_by': QuotedByTag,
     'date': DateTag,
     'score': ScoreTag,
@@ -255,7 +222,10 @@ def create_tag(name, value, cmp=None):
         if cmp not in ['<', '<=', '>=', '>']:
             raise ValueError("Invalid comparator")
         else:
-            return tag(value=value, cmp=cmp)
+            try:
+                return tag(value=value, cmp=cmp)
+            except TypeError as e:
+                raise ValueError("This tag does not accept comparators") from e
 
     return tag(value=value)
 
@@ -263,7 +233,8 @@ def create_tag(name, value, cmp=None):
 PATTERN = re.compile(r'^([-\w]+):(<|<=|>=|>)?([-\w]+)$')
 
 
-def handle_search(bot, update, args=list(), user_data=None):
+@session_wrapper
+def handle_search(bot, update, args=list(), user_data=None, session=None):
     if user_data is None:
         chat_id = update.message.chat_id
     else:
@@ -272,7 +243,7 @@ def handle_search(bot, update, args=list(), user_data=None):
     if not args:
         return
 
-    terms, clauses, params = [], [], []
+    terms, tags = [], []
 
     for item in args:
         match = PATTERN.search(item)
@@ -287,38 +258,32 @@ def handle_search(bot, update, args=list(), user_data=None):
             elif len(groups) == 3:
                 name, cmp, value = groups
 
-            try:
-                filter_ = create_tag(name, value, cmp=cmp)
-            except ValueError as e:
-                raise ValueError from e
-            else:
-                c, p = filter_.sql()
-                clauses.append(c)
-                params.extend(p)
+            tag = create_tag(name, value, cmp=cmp)
+            tags.append(tag)
         # Search terms
         else:
             terms.append(item)
 
     terms = ' '.join(terms)
-    result = database.search_quote(chat_id, terms, clauses, params)
+    quote, user = database.search_quote(session, chat_id, terms, tags)
 
     if len(args) > TRUNCATE_ARGS_LENGTH:
         args = args[:TRUNCATE_ARGS_LENGTH] + '...'
 
-    user = update.message.from_user
+    from_user = update.message.from_user
 
-    if result is None:
-        response = 'no quotes found'
-        update.message.reply_text(response)
+    if quote is None:
+        update.message.reply_text("no quotes found")
     else:
         votes = create_vote_buttons(
-            user.id, result.quote.id, direct=user_data is not None)
+            from_user.id, quote.id, direct=user_data is not None,
+            session=session)
 
-        response = format_quote(*result)
+        response = format_quote(quote, user)
         message = update.message.reply_text(
             response, parse_mode='HTML', reply_markup=votes)
 
-        database.add_message(chat_id, message.message_id, result.quote.id)
+        database.add_message(session, chat_id, message.message_id, quote)
 
 
 handler_search = CommandHandler(

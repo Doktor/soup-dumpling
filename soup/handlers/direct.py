@@ -1,7 +1,7 @@
 from html import escape
 from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
-from telegram.ext import (ConversationHandler, CommandHandler, Filters,
-                          MessageHandler)
+from telegram.ext import (
+    ConversationHandler, CommandHandler, Filters, MessageHandler)
 
 from soup.core import chunks, database, SELECT_CHAT, SELECTED_CHAT
 from soup.handlers.quotes import dm_kwargs
@@ -33,16 +33,16 @@ def handle_start(bot, update, user_data):
     ]
 
     mapping = []
-    for i, (chat_id, chat_title) in enumerate(chats):
-        response.append("<b>[{0}]</b> {1}".format(i, escape(chat_title)))
-        mapping.append([i, chat_id, chat_title])
+    for i, chat in enumerate(chats):
+        response.append("<b>[{0}]</b> {1}".format(i, escape(chat.title)))
+        mapping.append([i, chat.id, chat.title])
 
     user_data['choices'] = mapping
     response = '\n'.join(response)
 
     if len(chats) < 6:
         # Use a reply keyboard
-        titles = [chat[1] for chat in chats]
+        titles = [chat.title for chat in chats]
         reply_keyboard = list(chunks(titles, 2))
         markup = ReplyKeyboardMarkup(
             reply_keyboard, one_time_keyboard=True, resize_keyboard=True)

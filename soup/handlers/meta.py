@@ -4,8 +4,7 @@ from subprocess import check_output
 from telegram.ext import CommandHandler, Filters, MessageHandler
 
 from soup.__version__ import VERSION_STRING
-from soup.classes import User, Chat
-from soup.core import database, username
+from soup.core import database, username, session_wrapper
 
 
 REPOSITORY_NAME = "Doktor/soup-dumpling"
@@ -79,12 +78,8 @@ handler_help = CommandHandler('help', handle_help, filters=Filters.private)
 
 
 def handle_help_group(bot, update):
-    kwargs = {
-        'username': username,
-    }
-
     response = [
-        '"Nice help!" - <b>Soup Dumpling {VERSION_STRING}</b>',
+        f'"Nice help!" - <b>Soup Dumpling {VERSION_STRING}</b>',
         '',
         '• <b>Groups</b>: /addquote',
         ('• <b>Anywhere</b>: /about, /author &lt;name&gt;, /count [term], '
@@ -92,10 +87,10 @@ def handle_help_group(bot, update):
         '/stats'),
         '• <b>Direct messages</b>: /chats or /start, /which',
         '',
-        'For extended help, DM <code>/help</code> to {username}',
+        f'For extended help, DM <code>/help</code> to {username}',
     ]
 
-    response = '\n'.join(response).format(**kwargs)
+    response = '\n'.join(response)
 
     update.message.reply_text(response,
         disable_web_page_preview=True, quote=False, parse_mode='HTML')
@@ -105,39 +100,43 @@ handler_help_group = CommandHandler(
     'help', handle_help_group, filters=Filters.group)
 
 
-def handle_database(bot, update):
+@session_wrapper
+def handle_database(bot, update, session=None):
     user = update.message.from_user
     chat = update.message.chat
 
-    database.add_or_update_user(User.from_telegram(user))
+    database.add_or_update_user(session, user)
 
     if user.id != chat.id:
-        database.add_or_update_chat(Chat.from_telegram(chat))
-        database.add_membership(user.id, chat.id)
+        database.add_or_update_chat(session, chat)
+        database.add_membership(session, user.id, chat.id)
 
 
 handler_database = MessageHandler(
     Filters.text | Filters.command, handle_database)
 
 
-def handle_user_left(bot, update):
+@session_wrapper
+def handle_user_left(bot, update, session=None):
     user_id = update.message.left_chat_member.id
     chat_id = update.message.chat_id
 
-    database.remove_membership(user_id, chat_id)
+    database.remove_membership(session, user_id, chat_id)
 
 
 handler_user_left = MessageHandler(
     Filters.status_update.left_chat_member, handle_user_left)
 
 
-def handle_group_migration(bot, update):
+@session_wrapper
+def handle_group_migration(bot, update, session=None):
     if hasattr(update.message, 'migrate_to_chat_id'):
         database.migrate_chat(
-            update.message.chat.id, update.message.migrate_to_chat_id)
+            session, update.message.chat.id, update.message.migrate_to_chat_id)
 
     elif hasattr(update.message, 'migrate_from_chat_id'):
-        assert not database.chat_exists(update.message.migrate_from_chat_id)
+        assert not database.chat_exists(
+            session, update.message.migrate_from_chat_id)
 
 
 handler_group_migration = MessageHandler(
