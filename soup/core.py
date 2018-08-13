@@ -2,6 +2,8 @@ import logging
 from datetime import datetime
 from html import escape
 from telegram.ext import Updater
+from telegram.error import (BadRequest, ChatMigrated, NetworkError,
+    TelegramError, TimedOut, Unauthorized)
 
 from soup.database import QuoteDatabase
 
@@ -32,10 +34,22 @@ with open('tokens/username.txt', 'r') as f:
 database = QuoteDatabase()
 
 
+def error_callback(bot, update, error):
+    try:
+        raise error
+    except ChatMigrated as e:
+        pass
+    except (NetworkError, TimedOut) as e:
+        pass
+    except (BadRequest, TelegramError, Unauthorized) as e:
+        logging.error(traceback.format_exc())
+
+
 class QuoteBot:
     def __init__(self, token, handlers):
         self.updater = Updater(token)
         self.dispatcher = self.updater.dispatcher
+        self.dispatcher.add_error_handler(error_callback)
 
         for i, handler in enumerate(handlers):
             self.dispatcher.add_handler(handler, group=i)
