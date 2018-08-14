@@ -1,6 +1,7 @@
 import contextlib
 import functools
 import logging
+import os
 import traceback
 from html import escape
 from telegram.ext import ConversationHandler, Updater
@@ -28,12 +29,15 @@ TRUNCATE_ARGS_LENGTH = 100
 SELECT_CHAT = 1
 SELECTED_CHAT = 2
 
+DEBUG = os.path.isfile('debug')
+
 # The bot's Telegram username
 with open('tokens/username.txt', 'r') as f:
     username = f.read().strip()
 
 # Global database object
-database = QuoteDatabase()
+FILENAME = 'test.db' if DEBUG else 'data.db'
+database = QuoteDatabase(filename=FILENAME)
 
 
 @contextlib.contextmanager

@@ -1,10 +1,9 @@
-import os
 import shlex
 from subprocess import check_output
 from telegram.ext import CommandHandler, Filters, MessageHandler
 
 from soup.__version__ import VERSION_STRING
-from soup.core import database, username, session_wrapper
+from soup.core import database, DEBUG, username, session_wrapper
 
 
 REPOSITORY_NAME = "Doktor/soup-dumpling"
@@ -24,8 +23,6 @@ ORIGIN_DIFF = check_output(
     encoding='utf8')
 
 PUSHED = COMMIT_HASH not in ORIGIN_DIFF
-
-DEBUG = os.path.isfile('debug')
 
 # The relative date is used for the 'about' command
 DATE_ARGS[4] = '--date=relative'

@@ -22,10 +22,10 @@ class QuoteDatabase:
 
     SCORE_TO_DELETE = -5
 
-    def __init__(self, filename='test.db'):
+    def __init__(self, filename='data.db'):
         self.filename = filename
 
-        engine = create_engine("sqlite:///test.db", echo=False)
+        engine = create_engine(f"sqlite:///{filename}", echo=False)
         Base.metadata.create_all(engine)
 
         self.session_factory = sessionmaker(bind=engine)
