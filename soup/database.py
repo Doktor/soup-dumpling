@@ -62,7 +62,7 @@ class QuoteDatabase:
     def get_user_chats(self, session, user_id):
         """Returns a list of chats that a user is a member of."""
         user = self.get_user_by_id(session, user_id)
-        return user.chats
+        return [] if user is None else user.chats
 
     def get_user_score(self, session, user_id, chat_id):
         """Returns the total number of upvotes and downvotes, and the total
@@ -130,8 +130,8 @@ class QuoteDatabase:
     def remove_membership(self, session, user_id, chat_id):
         """Removes a membership listing, when a user leaves or is removed from
         a group."""
-        user = self.get_user_by_id(user_id)
-        chat = self.get_chat_by_id(chat_id)
+        user = self.get_user_by_id(session, user_id)
+        chat = self.get_chat_by_id(session, chat_id)
 
         user.chats.remove(chat)
 
@@ -188,7 +188,7 @@ class QuoteDatabase:
 
     def get_quote_by_ids(self, session, chat_id, message_id):
         return (session.query(Quote)
-            .filter(Quote.chat.id == chat_id, Quote.message_id == message_id)
+            .filter(Quote.chat_id == chat_id, Quote.message_id == message_id)
             .one_or_none())
 
     def get_quote_count(self, session, chat_id):
@@ -287,6 +287,11 @@ class QuoteDatabase:
         session.add(quote)
 
         return quote, self.QUOTE_ADDED
+
+    def add_quote_for_test(self, session, quote):
+        return self.add_quote(session, quote.chat_id, quote.message_id,
+            quote.is_forward, quote.sent_at, quote.sent_by_id, quote.content,
+            quote.content_html, quote.quoted_by_id)
 
     def delete_quote(self, session, quote_id):
         """Marks a quote as deleted."""
