@@ -57,7 +57,7 @@ def handle_about(bot, update):
 handler_about = CommandHandler('about', handle_about)
 
 
-with open('help.txt', 'r', encoding='utf8') as f:
+with open('soup/help.txt', encoding='utf8') as f:
     raw = f.read().strip()
     kwargs = {
         'version': VERSION_STRING,

@@ -5,9 +5,7 @@
 
 <b>Anywhere</b>
 • /about: show detailed version/repository info
-• /author &lt;name&gt;: show a random quote by &lt;name&gt;
 • /count: show how many quotes exist
-• /count &lt;term&gt;: show how many quotes match [term]
 • /help: show this message
 • /most_added: show who adds the most quotes
 • /most_quoted: show who has been quoted the most
