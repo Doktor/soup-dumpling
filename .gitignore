@@ -1,6 +1,7 @@
-# Database files
+# Sensitive data
 *.db
 *.bak
+data/
 
 # Build files
 build/
@@ -10,9 +11,6 @@ soup_dumpling.egg-info/
 
 # Compiled files
 *.py[cod]
-
-# API tokens
-tokens/
 
 # Other files
 .idea/

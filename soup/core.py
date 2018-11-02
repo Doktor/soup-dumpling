@@ -1,5 +1,6 @@
 import contextlib
 import functools
+import json
 import logging
 import os
 import traceback
@@ -31,9 +32,17 @@ SELECTED_CHAT = 2
 
 DEBUG = os.path.isfile('debug')
 
-# The bot's Telegram username
-with open('tokens/username.txt', 'r') as f:
-    username = f.read().strip()
+
+# Load config file
+CONFIG_FILENAME = 'config.json' if not DEBUG else 'config-dev.json'
+
+with open(os.path.join('data', CONFIG_FILENAME)) as f:
+    contents = f.read().strip()
+    config = json.loads(contents)
+
+username = config['username']
+TOKEN = config['token']
+
 
 # Global database object
 FILENAME = 'test.db' if DEBUG else 'data.db'
@@ -142,8 +151,5 @@ def main():
     handlers = [v for k, v in ns.items() if k.startswith('handler')]
     handlers += [handler_dm]
 
-    with open('tokens/weow.txt', 'r') as f:
-        token = f.read().strip()
-
-    quote = QuoteBot(token, handlers)
+    quote = QuoteBot(TOKEN, handlers)
     quote.run()
