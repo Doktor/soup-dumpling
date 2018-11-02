@@ -12,6 +12,16 @@ class Tag:
         raise NotImplementedError
 
 
+class AuthorTag(Tag):
+    def __init__(self, value=None):
+        self.value = value.lower()
+
+    def apply_filter(self, query):
+        return (query.join(User, Quote.sent_by_id == User.id)
+            .filter(User.first_name.ilike(f'%{self.value}%')
+                    | User.last_name.ilike(f'%{self.value}%')))
+
+
 class UsernameTag(Tag):
     def __init__(self, value=None):
         self.value = value.lower()
@@ -63,6 +73,7 @@ class ScoreTag(Tag):
 
 
 TAGS = {
+    'author': AuthorTag,
     'username': UsernameTag,
     'u': UsernameTag,
     'quoted_by': QuotedByTag,
