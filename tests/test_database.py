@@ -91,7 +91,8 @@ def generate_bool():
 
 
 def generate_id():
-    return random.randint(-1e9, 1e9)
+    return random.randint(-1e12, 1e12)
+
 
 
 class UserFactory(factory.Factory):
@@ -102,7 +103,7 @@ class UserFactory(factory.Factory):
     first_name = factory.Faker('first_name')
     last_name = factory.Faker('last_name')
     username = factory.LazyAttribute(
-        lambda user: f"{user.first_name}_{user.last_name}".lower())
+        lambda user: f"{user.first_name}_{user.last_name}_{user.id}".lower())
 
 
 class ChatFactory(factory.Factory):
