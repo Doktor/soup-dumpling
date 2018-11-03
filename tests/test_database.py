@@ -12,6 +12,35 @@ from soup.database import QuoteDatabase
 
 faker = faker.Faker()
 
+FILENAME = 'tests.db'
+
+
+# Setup and teardown
+
+
+def setup_module():
+    if os.path.isfile(FILENAME):
+        os.remove(FILENAME)
+
+
+def teardown_module():
+    os.remove(FILENAME)
+
+
+# Fixtures
+
+
+@pytest.fixture(scope='session')
+def db():
+    return QuoteDatabase(filename=FILENAME)
+
+
+@pytest.fixture(scope='function', autouse=True)
+def s(db):
+    session = db.create_session()
+    yield session
+    session.close()
+
 
 # Mock classes
 
@@ -106,27 +135,6 @@ class QuoteFactory(factory.Factory):
 
     deleted = False
     score = 0
-
-
-# Fixtures
-
-
-FILENAME = 'tests.db'
-
-
-@pytest.fixture(scope='session')
-def db():
-    if os.path.isfile(FILENAME):
-        os.remove(FILENAME)
-
-    return QuoteDatabase(filename=FILENAME)
-
-
-@pytest.fixture(scope='function', autouse=True)
-def s(db):
-    session = db.create_session()
-    yield session
-    session.close()
 
 
 # User
