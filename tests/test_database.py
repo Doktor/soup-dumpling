@@ -42,6 +42,18 @@ def s(db):
     session.close()
 
 
+# Helper functions
+
+
+def sign(n):
+    if n > 0:
+        return 1
+    elif n == 0:
+        return 0
+    else:
+        return -1
+
+
 # Mock classes
 
 
@@ -80,6 +92,16 @@ class Quote:
     score: int
 
 
+@dataclasses.dataclass
+class Vote:
+    id: int
+
+    user_id: int
+    quote_id: int
+
+    direction: int
+
+
 # Factories
 
 
@@ -93,6 +115,9 @@ def generate_bool():
 def generate_id():
     return random.randint(-1e12, 1e12)
 
+
+def generate_vote():
+    return random.randint(-1, 1)
 
 
 class UserFactory(factory.Factory):
@@ -121,7 +146,7 @@ class QuoteFactory(factory.Factory):
     class Meta:
         model = Quote
 
-    id = 0
+    id = factory.LazyFunction(generate_id)
     chat_id = factory.LazyFunction(generate_id)
     message_id = factory.LazyFunction(generate_id)
 
@@ -136,6 +161,33 @@ class QuoteFactory(factory.Factory):
 
     deleted = False
     score = 0
+
+
+def create_quote(db, s, user, chat, score=0):
+    """Adds a new quote to the database for the given user and chat."""
+    qf = QuoteFactory(sent_by_id=user.id, chat_id=chat.id)
+    quote, _ = db.add_quote_for_test(s, qf)
+
+    # Add enough users and votes to reach the given score
+    direction = sign(score)
+    for _ in range(abs(score)):
+        user = UserFactory()
+        db.add_or_update_user(s, user)
+        db.add_vote(s, user.id, quote.id, direction)
+
+    return quote
+
+
+class VoteFactory(factory.Factory):
+    class Meta:
+        model = Vote
+
+    id = factory.LazyFunction(generate_id)
+
+    user_id = factory.LazyFunction(generate_id)
+    quote_id = factory.LazyFunction(generate_id)
+
+    direction = factory.LazyFunction(generate_vote)
 
 
 # User
@@ -187,35 +239,28 @@ def test__add_or_update_user__existing_user__is_successful(db, s):
         assert getattr(user, p) == getattr(db_user, p)
 
 
-def test__get_user_chats__new_user__user_has_no_chats(db, s):
+def test__get_user_chats__new_user__list_is_empty(db, s):
     user = UserFactory()
     db.add_or_update_user(s, user)
 
     assert len(db.get_user_chats(s, user.id)) == 0
 
 
-def test__get_user_chats__user_with_chats__user_has_chats(db, s):
+def test__get_user_chats__user_with_chats__list_is_not_empty(db, s):
     user = UserFactory()
     db.add_or_update_user(s, user)
 
-    chat1 = ChatFactory()
-    db.add_or_update_chat(s, chat1)
-
-    chat2 = ChatFactory()
-    db.add_or_update_chat(s, chat2)
-
-    db.add_membership(s, user.id, chat1.id)
-    db.add_membership(s, user.id, chat2.id)
-
-    db_chat1 = db.get_chat_by_id(s, chat1.id)
-    db_chat2 = db.get_chat_by_id(s, chat2.id)
+    x = random.randrange(1, 11)
+    for _ in range(x):
+        chat = ChatFactory()
+        db.add_or_update_chat(s, chat)
+        db.add_membership(s, user.id, chat.id)
 
     chats = db.get_user_chats(s, user.id)
-    assert db_chat1 in chats
-    assert db_chat2 in chats
+    assert len(chats) == x
 
 
-def test__get_user_score__user_has_score_0_in_current_chat(db, s):
+def test__get_user_score__user_has_no_quotes__result_is_0_0_0(db, s):
     user = UserFactory()
     db.add_or_update_user(s, user)
 
@@ -225,9 +270,69 @@ def test__get_user_score__user_has_score_0_in_current_chat(db, s):
     assert db.get_user_score(s, user.id, chat.id) == (0, 0, 0)
 
 
-@pytest.mark.skip
-def test__get_user_score__user_has_score_10_in_current_chat(db, s):
-    pass
+def test__get_user_score__user_has_quotes_with_0_upvotes__result_is_0_0_0(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    quote, _ = db.add_quote_for_test(s, QuoteFactory(sent_by_id=user.id, chat_id=chat.id))
+    s.flush()
+
+    assert db.get_user_score(s, user.id, chat.id) == (0, 0, 0)
+
+
+def test__get_user_score__user_has_quotes_with_10_upvotes__result_is_10_10_0(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    create_quote(db, s, user, chat, score=10)
+    assert db.get_user_score(s, user.id, chat.id) == (10, 10, 0)
+
+
+def test__get_user_score__user_has_quotes_with_multiple_votes(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    quote, _ = db.add_quote_for_test(s, QuoteFactory(sent_by_id=user.id, chat_id=chat.id))
+
+    total_up, total_score, total_down = 0, 0, 0
+    for _ in range(random.randint(10, 50)):
+        quote = create_quote(db, s, user, chat, score=random.randint(-4, 20))
+        up, score, down = db.get_votes_by_id(s, quote.id)
+        total_up += up
+        total_score += score
+        total_down += down
+
+    s.flush()
+    assert db.get_user_score(s, user.id, chat.id) == (total_up, total_score, total_down)
+
+
+def test__get_user_score__user_has_deleted_quotes__score_of_deleted_quotes_is_not_counted(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    for _ in range(random.randrange(1, 11)):
+        create_quote(db, s, user, chat, score=random.randint(-20, -5))
+
+    total = 0
+    for _ in range(random.randrange(1, 11)):
+        score = random.randint(1, 20)
+        total += score
+        create_quote(db, s, user, chat, score=score)
+
+    s.flush()
+    assert db.get_user_score(s, user.id, chat.id) == (total, total, 0)
 
 
 def test__get_user_quotes__user_has_no_quotes(db, s):
