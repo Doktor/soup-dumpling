@@ -164,9 +164,9 @@ class QuoteFactory(factory.Factory):
     score = 0
 
 
-def create_quote(db, s, user, chat, score=0):
+def create_quote(db, s, user, chat, score=0, **kwargs):
     """Adds a new quote to the database for the given user and chat."""
-    qf = QuoteFactory(sent_by_id=user.id, chat_id=chat.id)
+    qf = QuoteFactory(sent_by_id=user.id, chat_id=chat.id, **kwargs)
     quote, _ = db.add_quote_for_test(s, qf)
 
     # Add enough users and votes to reach the given score
@@ -596,14 +596,90 @@ def test__get_quote_count__multiple_chats__only_counts_quotes_in_current_chat(db
     assert db.get_quote_count(s, current.id) == 0
 
 
-@pytest.mark.skip
-def test__get_first_quote(db, s):
-    pass
+def test__get_first_quote__empty_chat__is_none(db, s):
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    assert db.get_first_quote(s, chat.id) is None
 
 
-@pytest.mark.skip
-def test__get_last_quote(db, s):
-    pass
+def test__get_first_quote__populated_chat__returns_first_quote(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    date = faker.date_this_year()
+    first = create_quote(db, s, user, chat, sent_at=date)
+
+    for _ in range(random.randrange(1, 11)):
+        date = date + datetime.timedelta(days=1)
+        create_quote(db, s, user, chat, sent_at=date)
+
+    assert db.get_first_quote(s, chat.id) == first
+
+
+def test__get_first_quote__multiple_first_quotes__returns_any_choice(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    date = faker.date_this_year()
+    one = create_quote(db, s, user, chat, sent_at=date)
+    two = create_quote(db, s, user, chat, sent_at=date)
+
+    for _ in range(random.randrange(1, 11)):
+        date = date + datetime.timedelta(days=1)
+        create_quote(db, s, user, chat, sent_at=date)
+
+    assert db.get_first_quote(s, chat.id) in [one, two]
+
+
+def test__get_last_quote__empty_chat__is_none(db, s):
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    assert db.get_last_quote(s, chat.id) is None
+
+
+def test__get_last_quote__populated_chat__returns_last_quote(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    date = faker.date_this_year()
+
+    for _ in range(random.randrange(1, 11)):
+        create_quote(db, s, user, chat, sent_at=date)
+        date = date + datetime.timedelta(days=1)
+
+    last = create_quote(db, s, user, chat, sent_at=date)
+
+    assert db.get_last_quote(s, chat.id) == last
+
+
+def test__get_last_quote__multiple_last_quotes__returns_any_choice(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    date = faker.date_this_year()
+
+    for _ in range(random.randrange(1, 11)):
+        create_quote(db, s, user, chat, sent_at=date)
+        date = date + datetime.timedelta(days=1)
+
+    one = create_quote(db, s, user, chat, sent_at=date)
+    two = create_quote(db, s, user, chat, sent_at=date)
+
+    assert db.get_last_quote(s, chat.id) in [one, two]
 
 
 def test__get_random_quote__populated_chat__is_not_none(db, s):
