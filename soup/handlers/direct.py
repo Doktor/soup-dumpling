@@ -3,7 +3,8 @@ from telegram import ReplyKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (
     ConversationHandler, CommandHandler, Filters, MessageHandler)
 
-from soup.core import chunks, database, SELECT_CHAT, SELECTED_CHAT
+from soup.core import (
+    chunks, database, session_wrapper, SELECT_CHAT, SELECTED_CHAT)
 from soup.handlers.quotes import dm_kwargs
 
 
@@ -16,10 +17,11 @@ def handle_cancel(bot, update, user_data):
 dm_only_handler_cancel = CommandHandler('cancel', handle_cancel, **dm_kwargs)
 
 
-def handle_start(bot, update, user_data):
+@session_wrapper
+def handle_start(bot, update, user_data, session=None):
     user_id = update.message.from_user.id
 
-    chats = database.get_user_chats(user_id)
+    chats = database.get_user_chats(session, user_id)
 
     if not chats:
         response = "<b>Chat selection</b>\nno chats found"

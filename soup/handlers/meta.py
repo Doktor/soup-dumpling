@@ -7,7 +7,7 @@ from soup.core import database, DEBUG, username, session_wrapper
 
 
 REPOSITORY_NAME = "Doktor/soup-dumpling"
-REPOSITORY_URL = "https://github.com/Doktor/soup-dumpling"
+REPOSITORY_URL = "https://gitlab.com/Doktor/soup-dumpling"
 
 COMMIT_HASH = check_output(['/usr/bin/git', 'rev-parse', 'HEAD'],
     encoding='utf8').rstrip('\n')
@@ -31,7 +31,7 @@ DATE_ARGS[4] = '--date=relative'
 def handle_about(bot, update):
     updated_relative = check_output(DATE_ARGS, encoding='utf8')
 
-    # Add a GitHub link if the current commit exists there
+    # Add a GitLab link if the current commit exists there
     if PUSHED:
         commit = f'<a href="{COMMIT_URL}">{COMMIT_HASH[:7]}</a>'
     else:
@@ -79,7 +79,7 @@ def handle_help_group(bot, update):
         f'"Nice help!" - <b>Soup Dumpling {VERSION_STRING}</b>',
         '',
         '• <b>Groups</b>: /addquote',
-        ('• <b>Anywhere</b>: /about, /author &lt;name&gt;, /count [term], '
+        ('• <b>Anywhere</b>: /about, /count [term], '
         '/help, /most_added, /most_quoted, /random, /search &lt;term&gt;, '
         '/stats'),
         '• <b>Direct messages</b>: /chats or /start, /which',
