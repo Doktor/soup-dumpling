@@ -186,14 +186,14 @@ def test_update_existing_user(db, s):
         assert getattr(user, p) == getattr(db_user, p)
 
 
-def test_user_has_no_groups(db, s):
+def test_user_is_member_of_no_groups(db, s):
     user = UserFactory()
     db.add_or_update_user(s, user)
 
-    assert not db.get_user_chats(s, user.id)
+    assert len(db.get_user_chats(s, user.id)) == 0
 
 
-def test_user_has_multiple_groups(db, s):
+def test_user_is_member_of_multiple_groups(db, s):
     user = UserFactory()
     db.add_or_update_user(s, user)
 
@@ -239,14 +239,35 @@ def test_user_has_no_quotes(db, s):
     assert len(list(db.get_user_quotes(s, user.id, chat.id))) == 0
 
 
-@pytest.mark.skip
 def test_user_has_quotes_in_current_chat(db, s):
-    pass
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    current = ChatFactory()
+    db.add_or_update_chat(s, current)
+
+    for _ in range(10):
+        quote = QuoteFactory(sent_by_id=user.id, chat_id=current.id)
+        db.add_quote_for_test(s, quote)
+
+    assert len(list(db.get_user_quotes(s, user.id, current.id))) == 10
 
 
-@pytest.mark.skip
 def test_user_has_no_quotes_in_current_chat(db, s):
-    pass
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    current = ChatFactory()
+    db.add_or_update_chat(s, current)
+
+    other = ChatFactory()
+    db.add_or_update_chat(s, other)
+
+    for _ in range(10):
+        quote = QuoteFactory(sent_by_id=user.id, chat_id=other.id)
+        db.add_quote_for_test(s, quote)
+
+    assert len(list(db.get_user_quotes(s, user.id, current.id))) == 0
 
 
 # Chat
@@ -302,12 +323,15 @@ def test_migrate_chat(db, s):
     chat = ChatFactory()
     db.add_or_update_chat(s, chat)
 
-    db_chat = db.get_chat_by_id(s, chat.id)
+    old_id = chat.id
+    db_chat = db.get_chat_by_id(s, old_id)
 
     new_id = generate_id()
     db.migrate_chat(s, chat.id, new_id)
 
     assert db_chat.id == new_id
+    assert not db.chat_exists(s, old_id)
+    assert db.chat_exists(s, new_id)
 
 
 # Membership
@@ -325,6 +349,23 @@ def test_add_user_to_chat(db, s):
     assert db_chat not in db.get_user_chats(s, user.id)
     db.add_membership(s, user.id, chat.id)
     assert db_chat in db.get_user_chats(s, user.id)
+
+
+def test_add_user_to_chat_multiple_times(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    db_chat = db.get_chat_by_id(s, chat.id)
+
+    for _ in range(5):
+        db.add_membership(s, user.id, chat.id)
+
+    chats = db.get_user_chats(s, user.id)
+    assert db_chat in chats
+    assert len(chats) == 1
 
 
 def test_remove_user_from_chat(db, s):
@@ -413,7 +454,7 @@ def test_quote_count_is_0(db, s):
     assert db.get_quote_count(s, chat.id) == 0
 
 
-def test_quote_count_is_10_in_current_chat(db, s):
+def test_quote_count_is_10(db, s):
     user = UserFactory()
     db.add_or_update_user(s, user)
 
@@ -427,22 +468,26 @@ def test_quote_count_is_10_in_current_chat(db, s):
     assert db.get_quote_count(s, chat.id) == 10
 
 
-def test_quote_count_is_0_in_current_chat(db, s):
+def test_quote_count_is_not_affected_by_other_chats(db, s):
     """Quotes added to other chats don't affect the count in this chat."""
     user = UserFactory()
     db.add_or_update_user(s, user)
 
-    chat1 = ChatFactory()
-    db.add_or_update_chat(s, chat1)
+    current = ChatFactory()
+    db.add_or_update_chat(s, current)
+
+    other = ChatFactory()
+    db.add_or_update_chat(s, other)
 
     for _ in range(10):
-        quote = QuoteFactory(sent_by_id=user.id, chat_id=chat1.id)
+        quote = QuoteFactory(sent_by_id=user.id, chat_id=other.id)
         db.add_quote_for_test(s, quote)
 
-    chat2 = ChatFactory()
-    db.add_or_update_chat(s, chat2)
+    assert db.get_quote_count(s, current.id) == 0
 
-    assert db.get_quote_count(s, chat2.id) == 0
+    db.add_or_update_chat(s, current)
+
+    assert db.get_quote_count(s, current.id) == 0
 
 
 @pytest.mark.skip
@@ -509,9 +554,33 @@ def test_search_quote(db, s):
     pass
 
 
-@pytest.mark.ship
 def test_add_quote(db, s):
-    pass
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    quote = QuoteFactory(sent_by_id=user.id, chat_id=chat.id)
+    db_quote, status = db.add_quote_for_test(s, quote)
+
+    assert db_quote is not None
+    assert status == QuoteDatabase.QUOTE_ADDED
+
+
+def test_add_duplicate_quote(db, s):
+    user = UserFactory()
+    db.add_or_update_user(s, user)
+
+    chat = ChatFactory()
+    db.add_or_update_chat(s, chat)
+
+    quote = QuoteFactory(sent_by_id=user.id, chat_id=chat.id)
+    db_quote1, _ = db.add_quote_for_test(s, quote)
+
+    db_quote2, status = db.add_quote_for_test(s, quote)
+    assert db_quote1 == db_quote2
+    assert status == QuoteDatabase.QUOTE_ALREADY_EXISTS
 
 
 def test_delete_quote(db, s):
@@ -520,18 +589,6 @@ def test_delete_quote(db, s):
     s.flush()
 
     assert not db_quote.deleted
-    db.delete_quote(s, db_quote.id)
-    assert db_quote.deleted
-
-
-def test_delete_deleted_quote(db, s):
-    quote = QuoteFactory(sent_by_id=None, chat_id=None)
-    db_quote, _ = db.add_quote_for_test(s, quote)
-    s.flush()
-
-    db.delete_quote(s, db_quote.id)
-    assert db_quote.deleted
-
     db.delete_quote(s, db_quote.id)
     assert db_quote.deleted
 
