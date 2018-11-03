@@ -11,6 +11,12 @@ class Tag:
     def apply_filter(self, query):
         raise NotImplementedError
 
+    def __str__(self):
+        return f"<{self.__class__.__name__}: {self.value}>"
+
+    def __repr__(self):
+        return str(self)
+
 
 class AuthorTag(Tag):
     def __init__(self, value=None):
