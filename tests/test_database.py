@@ -7,6 +7,7 @@ import logging
 import os
 import pytest
 import random
+from sqlalchemy.orm import Session
 
 from soup.database import QuoteDatabase
 
@@ -31,12 +32,12 @@ def teardown_module():
 
 
 @pytest.fixture(scope='session')
-def db():
+def db() -> QuoteDatabase:
     return QuoteDatabase(filename=FILENAME)
 
 
 @pytest.fixture(scope='function', autouse=True)
-def s(db):
+def s(db: QuoteDatabase) -> Session:
     session = db.create_session()
     yield session
     session.close()
