@@ -5,8 +5,7 @@ from soup.classes import Quote, User
 
 
 class Tag:
-    def __init__(self, value=None):
-        self.value = value
+    value = None
 
     def apply_filter(self, query):
         raise NotImplementedError
