@@ -1,0 +1,8 @@
+addquote - add a quote
+about - what's a soup dumpling?
+help - command reference
+most_added - who adds the most quotes
+most_quoted - who's quoted the most
+random - show a random quote
+search - search for a quote
+stats - show quote stats
