@@ -13,6 +13,14 @@
 • /search &lt;term&gt;: show a random quote matching &lt;term&gt;
 • /stats: show quote statistics
 
+<b>Advanced search</b>
+• You can use tags with <code>/search</code> for more specific results. For example, <code>author:doktor</code> returns a quote from someone named "Doktor".
+• <code>author</code>
+• <code>username</code>
+• <code>quoted_by</code>
+• <code>date</code>
+• <code>score</code>
+
 <b>Direct messages</b>
 • /chats or /start: select a chat to browse
 • /which: show which chat you're browsing
