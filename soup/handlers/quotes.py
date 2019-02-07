@@ -2,7 +2,8 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, TelegramError
 from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
 
 from soup.core import (
-    database, TRUNCATE_ARGS_LENGTH, format_quote, session_wrapper)
+    database, TRUNCATE_ARGS_LENGTH, session_wrapper)
+from soup.utils import format_quote
 from soup.handlers.search_tags import create_tag, PATTERN
 
 dm_kwargs = {

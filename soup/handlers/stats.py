@@ -2,7 +2,8 @@ import functools
 from html import escape
 from telegram.ext import CommandHandler, Filters
 
-from soup.core import database, format_users, TIME_FORMAT, session_wrapper
+from soup.core import database, TIME_FORMAT, session_wrapper
+from soup.utils import format_users
 from soup.handlers.quotes import dm_kwargs
 
 
