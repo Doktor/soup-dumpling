@@ -196,28 +196,6 @@ class QuoteDatabase:
         return (session.query(func.count(Quote.id))
             .filter(Quote.chat_id == chat_id).scalar())
 
-    def get_first_quote(self, session, chat_id):
-        """Returns the first quote added in the given chat."""
-        return self._get_edge_quote(session, chat_id, 'first')
-
-    def get_last_quote(self, session, chat_id):
-        """Returns the last quote added in the given chat."""
-        return self._get_edge_quote(session, chat_id, 'last')
-
-    def _get_edge_quote(self, session, chat_id, direction):
-        """Returns the first/last quote added in the given chat."""
-        assert direction in ('first', 'last')
-
-        if direction == 'first':
-            order = Quote.sent_at.asc()
-        else:
-            order = Quote.sent_at.desc()
-
-        return (session.query(Quote)
-            .filter(Quote.chat_id == chat_id, Quote.deleted == False)
-            .order_by(order)
-            .first())
-
     def get_random_quote(self, session, chat_id, name=None):
         """Returns a random quote, and the user who wrote the quote."""
         query = (session.query(Quote)

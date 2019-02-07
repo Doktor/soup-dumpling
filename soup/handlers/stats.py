@@ -33,29 +33,15 @@ def handle_stats(bot, update, args=None, user_data=None, general=True,
     limit = parse_limit(args, default=5)
     response = list()
 
-    first = database.get_first_quote(session, chat_id)
-    last = database.get_last_quote(session, chat_id)
-
-    if first is None:
-        assert last is None
-        return update.message.reply_text("no quotes in database")
-
     total_count = database.get_quote_count(session, chat_id)
+
+    if not total_count:
+        return update.message.reply_text("no quotes in database")
 
     if general:
         # Total quotes
         response.append("<b>Overall</b>")
         response.append("• {0} total quotes".format(total_count))
-
-        # First and last quote
-        fts = first.sent_at.strftime(TIME_FORMAT)
-        lts = last.sent_at.strftime(TIME_FORMAT)
-
-        response.append(
-            "• First: {0} by {1}".format(fts, first.sent_by.first_name))
-        response.append(
-            "• Last: {0} by {1}".format(lts, last.sent_by.first_name))
-        response.append("")
 
     if quoted:
         most_quoted = database.get_most_quoted(session, chat_id, limit=limit)
