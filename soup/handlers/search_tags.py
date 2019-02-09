@@ -77,6 +77,17 @@ class ScoreTag(Tag):
             return query.filter(Quote.score == self.value)
 
 
+class TypeTag(Tag):
+    def __init__(self, value=None):
+        if value not in ('text', 'photo'):
+            raise ValueError
+
+        self.value = value
+
+    def apply_filter(self, query):
+        return query.filter(Quote.message_type == self.value)
+
+
 TAGS = {
     'author': AuthorTag,
     'username': UsernameTag,
@@ -84,6 +95,7 @@ TAGS = {
     'quoted_by': QuotedByTag,
     'date': DateTag,
     'score': ScoreTag,
+    'type': TypeTag,
 }
 
 
