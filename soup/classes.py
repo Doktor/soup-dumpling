@@ -67,6 +67,10 @@ class Quote(Base):
     content = Column(Text)
     content_html = Column(Text)
 
+    file_id = Column(Text)
+
+    message_type = Column(Enum('text', 'photo'), default='text')
+
     quoted_by_id = Column(Integer, ForeignKey('user.id'), nullable=True)
     quoted_by = relationship(
         "User", back_populates="quotes_added", cascade='save-update, merge',

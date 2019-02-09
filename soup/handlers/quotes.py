@@ -3,7 +3,7 @@ from telegram.ext import CallbackQueryHandler, CommandHandler, Filters
 
 from soup.core import (
     database, TRUNCATE_ARGS_LENGTH, session_wrapper)
-from soup.utils import format_quote
+from soup.utils import send_quote
 from soup.handlers.search_tags import create_tag, PATTERN
 
 dm_kwargs = {
@@ -130,13 +130,10 @@ def handle_random(bot, update, user_data=None, session=None):
         update.message.reply_text("no quotes in database")
     else:
         user = update.message.from_user
-        votes = create_vote_buttons(
+        buttons = create_vote_buttons(
             user.id, quote.id, direct=user_data is not None, session=session)
 
-        response = format_quote(quote, sent_by)
-        message = update.message.reply_text(
-            response, parse_mode='HTML', reply_markup=votes)
-
+        message = send_quote(update, quote, sent_by, buttons)
         database.add_message(session, chat_id, message.message_id, quote)
 
 
@@ -176,7 +173,7 @@ def handle_search(bot, update, args=list(), user_data=None, session=None):
             terms.append(item)
 
     terms = ' '.join(terms)
-    quote, user = database.search_quote(session, chat_id, terms, tags)
+    quote, sent_by = database.search_quote(session, chat_id, terms, tags)
 
     if len(args) > TRUNCATE_ARGS_LENGTH:
         args = args[:TRUNCATE_ARGS_LENGTH] + '...'
@@ -186,14 +183,10 @@ def handle_search(bot, update, args=list(), user_data=None, session=None):
     if quote is None:
         update.message.reply_text("no quotes found")
     else:
-        votes = create_vote_buttons(
-            from_user.id, quote.id, direct=user_data is not None,
-            session=session)
+        buttons = create_vote_buttons(
+            from_user.id, quote.id, direct=user_data is not None, session=session)
 
-        response = format_quote(quote, user)
-        message = update.message.reply_text(
-            response, parse_mode='HTML', reply_markup=votes)
-
+        message = send_quote(update, quote, sent_by, buttons)
         database.add_message(session, chat_id, message.message_id, quote)
 
 

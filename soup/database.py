@@ -234,7 +234,8 @@ class QuoteDatabase:
             return None, None
 
     def add_quote(self, session, chat_id, message_id, is_forward,
-            sent_at, sent_by_id, content, content_html, quoted_by_id, score=0):
+            sent_at, sent_by_id, message_type, content, content_html, file_id,
+            quoted_by_id, score=0):
         """Inserts a quote."""
         quote = (session.query(Quote.id, Quote.deleted)
             .filter(Quote.sent_at == sent_at,
@@ -259,8 +260,9 @@ class QuoteDatabase:
 
         quote = Quote(
             chat=chat, message_id=message_id, is_forward=is_forward,
-            sent_at=sent_at, sent_by=sent_by, content=content,
-            content_html=content_html, quoted_by=quoted_by, score=score)
+            sent_at=sent_at, sent_by=sent_by, message_type=message_type,
+            content=content, content_html=content_html, file_id=file_id,
+            quoted_by=quoted_by, score=score)
 
         session.add(quote)
 
@@ -268,8 +270,8 @@ class QuoteDatabase:
 
     def add_quote_for_test(self, session, quote):
         return self.add_quote(session, quote.chat_id, quote.message_id,
-            quote.is_forward, quote.sent_at, quote.sent_by_id, quote.content,
-            quote.content_html, quote.quoted_by_id, quote.score)
+            quote.is_forward, quote.sent_at, quote.sent_by_id, 'text',
+            quote.content, quote.content_html, '', quote.quoted_by_id, quote.score)
 
     def delete_quote(self, session, quote_id):
         """Marks a quote as deleted."""

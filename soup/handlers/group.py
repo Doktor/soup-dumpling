@@ -20,17 +20,30 @@ def handle_addquote(bot, update, word='quote', emoji=None, session=None):
     message = update.message
     quote = update.message.reply_to_message
 
-    assert quote is not None
+    # Only text and photo messages can be quoted
+    if quote.photo is not None:
+        if quote.sticker is not None:
+            return
 
-    # Only text messages or media captions can be quoted
-    if (quote.photo is not None or quote.video is not None) and quote.caption:
-        text = quote.caption
-        text_html = text
+        message_type = 'photo'
+
+        # Choose the largest size
+        photo = list(reversed(sorted(quote.photo, key=lambda i: i.width)))[0]
+
+        content = quote.caption
+        content_html = quote.caption_html
+        file_id = photo.file_id
+
     elif quote.text is not None:
-        text = quote.text
-        text_html = quote.text_html
+        message_type = 'text'
+
+        content = quote.text
+        content_html = quote.text_html
+        file_id = ''
+
     else:
-        return
+        response = format_response(f"can only {word} text and photo messages", emoji)
+        return update.message.reply_text(response)
 
     chat_id = message.chat.id
     message_id = quote.message_id
@@ -62,7 +75,9 @@ def handle_addquote(bot, update, word='quote', emoji=None, session=None):
     quote, status = database.add_quote(
         session,
         chat_id, message_id, is_forward,
-        sent_at, sent_by.id, text, text_html, quoted_by.id)
+        sent_at, sent_by.id,
+        message_type, content, content_html, file_id,
+        quoted_by.id)
 
     if status == database.QUOTE_ADDED:
         response = f"{word} added"
@@ -72,6 +87,8 @@ def handle_addquote(bot, update, word='quote', emoji=None, session=None):
         response = format_response(
             f"this {word} was previously deleted", emoji)
         return update.message.reply_text(response)
+    else:
+        raise RuntimeError
 
     response = format_response(response, emoji)
     message = update.message.reply_text(response)

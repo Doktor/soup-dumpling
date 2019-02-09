@@ -29,6 +29,10 @@ TRUNCATE_LENGTH = 800
 # Truncate search terms when no quotes are found
 TRUNCATE_ARGS_LENGTH = 100
 
+# Maximum message and caption length
+MAX_MESSAGE_LENGTH = 4096
+MAX_CAPTION_LENGTH = 1024
+
 # Load config file
 CONFIG_FILENAME = 'config.json' if not DEBUG else 'config-dev.json'
 
