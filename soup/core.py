@@ -1,4 +1,5 @@
 import contextlib
+import datetime
 import functools
 import json
 import logging
@@ -100,4 +101,5 @@ def main():
 
 
 if __name__ == '__main__':
+    logging.info("[%s] running" % datetime.datetime.now())
     main()
