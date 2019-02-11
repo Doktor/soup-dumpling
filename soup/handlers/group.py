@@ -21,10 +21,7 @@ def handle_addquote(bot, update, word='quote', emoji=None, session=None):
     quote = update.message.reply_to_message
 
     # Only text and photo messages can be quoted
-    if quote.photo is not None:
-        if quote.sticker is not None:
-            return
-
+    if quote.photo and quote.sticker is None:
         message_type = 'photo'
 
         # Choose the largest size
